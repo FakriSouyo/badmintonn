@@ -15,6 +15,7 @@ import ProfileModal from './components/ProfileModal';
 import AdminDashboard from './components/admin/AdminDashboard';
 import { useAuth } from './contexts/AuthContext';
 import { useModal } from './hooks/useModal';
+import NotFound from './components/NotFound';
 
 function AppContent() {
   const { user, loading, logout } = useAuth();
@@ -66,6 +67,7 @@ function AppContent() {
             )
           } 
         />
+        <Route path="/not-found" element={<NotFound />} />
         <Route
           path="/*"
           element={
@@ -94,6 +96,7 @@ function AppContent() {
                     </>
                   } />
                   {/* Add more non-admin routes as needed */}
+                  <Route path="*" element={<Navigate to="/not-found" replace />} />
                 </Routes>
               </main>
               <Footer />
