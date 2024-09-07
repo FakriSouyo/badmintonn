@@ -94,7 +94,7 @@ const Navbar = ({ openAuthModal, openBookingModal, openBookingHistory, openProfi
   };
 
   return (
-    <header className="px-4 lg:px-6 h-16 flex items-center fixed top-0 w-full bg-white bg-opacity-90 backdrop-blur-sm z-50">
+    <header className="px-4 lg:px-6 h-16 flex items-center fixed top-0 w-full bg-white bg-opacity-40 backdrop-blur-md z-50">
       <RouterLink to="/" className="flex items-center justify-center cursor-pointer">
         <span className="ml-2 text-lg font-semibold">Badminton Booking</span>
       </RouterLink>

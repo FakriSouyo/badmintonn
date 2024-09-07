@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from "./ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from "@/components/ui/dialog";
-import { format, addDays, parseISO, addHours } from 'date-fns';
 import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
+import { format, addDays, parseISO, addHours, isWithinInterval } from 'date-fns';
+import CourtCard from './CourtCard';
 
 const Schedule = ({ onBookingInitiated, openAuthModal }) => {
   const { user } = useAuth();
@@ -14,13 +13,7 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedCourt, setSelectedCourt] = useState(null);
 
-  const timeSlots = [
-    '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
-    '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
-  ];
-  
   const today = new Date();
   const days = [...Array(7)].map((_, index) => {
     const date = addDays(today, index);
@@ -36,19 +29,7 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
 
     const scheduleSubscription = supabase
       .channel('public:schedules')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, payload => {
-        console.log('Real-time update received:', payload);
-        setSchedules(currentSchedules => {
-          const updatedSchedules = [...currentSchedules];
-          const index = updatedSchedules.findIndex(s => s.id === payload.new.id);
-          if (index !== -1) {
-            updatedSchedules[index] = payload.new;
-          } else {
-            updatedSchedules.push(payload.new);
-          }
-          return updatedSchedules;
-        });
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, handleScheduleChange)
       .subscribe();
 
     return () => {
@@ -56,124 +37,17 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
     };
   }, []);
 
-  const isSlotBooked = (courtId, date, time) => {
-    return schedules.some(schedule => 
-      schedule.court_id === courtId &&
-      schedule.date === date &&
-      schedule.start_time === time &&
-      (schedule.status === 'booked' || schedule.status === 'pending')
-    );
-  };
-
-  const handleSlotClick = async (courtId, day, startTime) => {
-    if (isSlotBooked(courtId, day.date, startTime)) {
-      toast.error('Maaf, slot ini sudah dipesan. Silakan pilih slot lain.');
-      return;
-    }
-
-    if (user) {
-      try {
-        // Calculate end_time (assuming 1 hour duration)
-        const startDateTime = parseISO(`${day.date}T${startTime}`);
-        const endDateTime = addHours(startDateTime, 1);
-        const endTime = format(endDateTime, 'HH:mm');
-
-        const bookingData = {
-          courtId: courtId,
-          date: day.date,
-          startTime: startTime,
-          endTime: endTime,
-        };
-
-        // Initiate booking process
-        onBookingInitiated(bookingData);
-        
-        toast.success('Proses pemesanan dimulai. Silakan lanjutkan ke pembayaran.');
-      } catch (error) {
-        console.error('Error initiating booking:', error);
-        toast.error(`Gagal memulai pemesanan: ${error.message || 'Unknown error'}`);
+  const handleScheduleChange = (payload) => {
+    console.log('Real-time update received:', payload);
+    setSchedules(currentSchedules => {
+      const updatedSchedules = currentSchedules.map(s => 
+        s.id === payload.new.id ? { ...s, ...payload.new } : s
+      );
+      if (!updatedSchedules.some(s => s.id === payload.new.id)) {
+        updatedSchedules.push(payload.new);
       }
-    } else {
-      openAuthModal();
-    }
-  };
-
-  const renderScheduleModal = (court) => (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button onClick={() => setSelectedCourt(court)} className="w-full sm:w-auto">View Schedule</Button>
-      </DialogTrigger>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[90vw] h-[80vh] max-h-[80vh] overflow-auto">
-        <DialogHeader>
-          <DialogTitle>Schedule for Court {court.name}</DialogTitle>
-          <DialogDescription>Select an available slot to book</DialogDescription>
-        </DialogHeader>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse bg-white shadow-lg rounded-lg text-sm sm:text-base">
-            <thead className="sticky top-0 bg-gray-200 z-10">
-              <tr>
-                <th className="p-2 sm:p-3 text-left">Time</th>
-                {days.map(day => (
-                  <th key={day.name} className="p-2 sm:p-3 text-left">
-                    <div>{day.name.slice(0, 3)}</div>
-                    <div className="text-xs sm:text-sm text-gray-600">{day.displayDate}</div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {timeSlots.map((time, index) => (
-                <tr 
-                  key={time}
-                  className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}
-                >
-                  <td className="p-2 sm:p-3 font-medium sticky left-0 bg-inherit">{time}</td>
-                  {days.map(day => {
-                    const isBooked = isSlotBooked(court.id, day.date, time);
-                    return (
-                      <td key={`${day.name}-${time}`} className="p-1 sm:p-2">
-                        <DialogClose asChild>
-                          <Button 
-                            variant={isBooked ? "secondary" : "outline"}
-                            size="sm" 
-                            className={`w-full text-xs sm:text-sm ${
-                              isBooked ? 'bg-red-500 text-white cursor-not-allowed' : 
-                              'hover:bg-green-100'
-                            }`}
-                            onClick={() => !isBooked && handleSlotClick(court.id, day, time)}
-                            disabled={isBooked}
-                          >
-                            {isBooked ? 'Dipesan' : 'Tersedia'}
-                          </Button>
-                        </DialogClose>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-
-  const fetchSchedules = async () => {
-    try {
-      const startDate = format(today, 'yyyy-MM-dd');
-      const endDate = format(addDays(today, 6), 'yyyy-MM-dd');
-      const { data, error } = await supabase
-        .from('schedules')
-        .select('*')
-        .gte('date', startDate)
-        .lte('date', endDate);
-      if (error) throw error;
-      console.log('Schedules fetched:', data);
-      setSchedules(data || []);
-    } catch (error) {
-      console.error('Error fetching schedules:', error);
-      throw new Error('Failed to fetch schedules data');
-    }
+      return updatedSchedules;
+    });
   };
 
   const fetchData = async (retryCount = 0) => {
@@ -201,33 +75,75 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
       const { data, error } = await supabase.from('courts').select('*');
       if (error) throw error;
       console.log('Courts fetched:', data);
-      setCourts(data|| []);
+      setCourts(data || []);
     } catch (error) {
       console.error('Error fetching courts:', error);
       throw new Error('Failed to fetch courts data');
     }
   };
 
-  const renderCourtCard = (court) => {
-    const imageUrl = court.court_img 
-      ? `${supabase.storage.from('imgcourt').getPublicUrl(court.court_img).data.publicUrl}`
-      : "/api/placeholder/400/300";
+  const fetchSchedules = async () => {
+    try {
+      const startDate = format(today, 'yyyy-MM-dd');
+      const endDate = format(addDays(today, 6), 'yyyy-MM-dd');
+      const { data, error } = await supabase
+        .from('schedules')
+        .select('*')
+        .gte('date', startDate)
+        .lte('date', endDate);
+      if (error) throw error;
+      console.log('Schedules fetched:', data);
+      setSchedules(data || []);
+    } catch (error) {
+      console.error('Error fetching schedules:', error);
+      throw new Error('Failed to fetch schedules data');
+    }
+  };
 
-    return (
-      <Card key={court.id} className="w-full max-w-sm mx-auto">
-        <CardHeader>
-          <CardTitle>{court.name}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <img src={imageUrl} alt={`Court ${court.name}`} className="w-full h-48 object-cover rounded-md mb-4" />
-          <p className="text-lg font-semibold">Harga: Rp {court.hourly_rate.toLocaleString('id-ID')}/jam</p>
-          <p className="mt-2 text-sm">{court.description}</p>
-        </CardContent>
-        <CardFooter>
-          {renderScheduleModal(court)}
-        </CardFooter>
-      </Card>
+  const isSlotBooked = useCallback((courtId, date, time) => {
+    const startDateTime = parseISO(`${date}T${time}`);
+    const endDateTime = addHours(startDateTime, 1);
+    
+    return schedules.some(schedule => 
+      schedule.court_id === courtId &&
+      schedule.date === date &&
+      (schedule.status === 'booked' || schedule.status === 'confirmed') && // Tambahkan 'confirmed' jika diperlukan
+      isWithinInterval(startDateTime, {
+        start: parseISO(`${schedule.date}T${schedule.start_time}`),
+        end: parseISO(`${schedule.date}T${schedule.end_time}`)
+      })
     );
+  }, [schedules]);
+
+  const handleSlotClick = async (courtId, day, startTime) => {
+    if (isSlotBooked(courtId, day.date, startTime)) {
+      toast.error('Maaf, slot ini sudah dipesan. Silakan pilih slot lain.');
+      return;
+    }
+
+    if (user) {
+      try {
+        const startDateTime = parseISO(`${day.date}T${startTime}`);
+        const endDateTime = addHours(startDateTime, 1);
+        const endTime = format(endDateTime, 'HH:mm');
+
+        const bookingData = {
+          courtId: courtId,
+          date: day.date,
+          startTime: startTime,
+          endTime: endTime,
+        };
+
+        onBookingInitiated(bookingData);
+        
+        toast.success('Proses pemesanan dimulai. Silakan lanjutkan ke pembayaran.');
+      } catch (error) {
+        console.error('Error initiating booking:', error);
+        toast.error(`Gagal memulai pemesanan: ${error.message || 'Unknown error'}`);
+      }
+    } else {
+      openAuthModal();
+    }
   };
 
   if (loading) {
@@ -250,6 +166,7 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
       </div>
     );
   }
+
   return (
     <section id="schedule" className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="container px-4 sm:px-6 py-8 sm:py-12">
@@ -261,7 +178,20 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter text-center mb-6 sm:mb-8 text-gray-900">Our Courts</h2>
           {courts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {courts.map(court => renderCourtCard(court))}
+              {courts.map(court => (
+                <CourtCard 
+                  key={court.id}
+                  court={court}
+                  schedules={schedules}
+                  days={days}
+                  user={user}
+                  onBookingInitiated={onBookingInitiated}
+                  openAuthModal={openAuthModal}
+                  setSchedules={setSchedules}
+                  isSlotBooked={isSlotBooked}
+                  handleSlotClick={handleSlotClick}
+                />
+              ))}
             </div>
           ) : (
             <div className="text-center py-10">

@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from "./ui/button";
 import { Link } from 'react-scroll';
+import herobg from '../assets/bdm.jpg';
 
 const Home = () => {
   return (
@@ -42,13 +43,16 @@ const Home = () => {
             transition={{ duration: 0.8 }}
             className="mt-8 md:mt-0"
           >
-            <img
-              src="/placeholder.svg"
-              width="1270"
-              height="300"
-              alt="Lapangan Badminton"
-              className="w-full aspect-[3/2] md:aspect-[3/1] overflow-hidden rounded-xl object-cover shadow-xl"
-            />
+            <div className="relative">
+              <img
+                src={herobg}
+                width="1270"
+                height="1000"
+                alt="Lapangan Badminton"
+                className="w-full aspect-[3/2] overflow-hidden rounded-xl object-cover shadow-xl"
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/80 rounded-xl"></div>
+            </div>
           </motion.div>
         </div>
       </div>

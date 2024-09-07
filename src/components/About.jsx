@@ -1,5 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import playerbg from '../assets/player.jpeg';
+import lapanganbg from '../assets/images.jpeg';
+import peralatanbg from '../assets/racket.jpg';
+import bolabg from '../assets/shtlck.jpg';
 
 const About = () => {
   return (
@@ -34,38 +38,58 @@ const About = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 mt-8 md:mt-0">
-              <motion.img
-                src="/placeholder1.jpg"
-                alt="Lapangan Badminton"
-                className="rounded-lg shadow-md w-full h-auto object-cover"
+              <motion.div
+                className="relative w-full h-0 pb-[100%] overflow-hidden rounded-lg shadow-md"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5 }}
-              />
-              <motion.img
-                src="/placeholder2.jpg"
-                alt="Pemain"
-                className="rounded-lg shadow-md w-full h-auto object-cover"
+              >
+                <img
+                  src={lapanganbg}
+                  alt="Lapangan Badminton"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/80"></div>
+              </motion.div>
+              <motion.div
+                className="relative w-full h-0 pb-[100%] overflow-hidden rounded-lg shadow-md"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-              />
-              <motion.img
-                src="/placeholder3.jpg"
-                alt="Peralatan"
-                className="rounded-lg shadow-md w-full h-auto object-cover"
+              >
+                <img
+                  src={playerbg}
+                  alt="Pemain"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/80"></div>
+              </motion.div>
+              <motion.div
+                className="relative w-full h-0 pb-[100%] overflow-hidden rounded-lg shadow-md"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
-              />
-              <motion.img
-                src="/placeholder4.jpg"
-                alt="Area Lounge"
-                className="rounded-lg shadow-md w-full h-auto object-cover"
+              >
+                <img
+                  src={peralatanbg}
+                  alt="Peralatan"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/80"></div>
+              </motion.div>
+              <motion.div
+                className="relative w-full h-0 pb-[100%] overflow-hidden rounded-lg shadow-md"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.6 }}
-              />
+              >
+                <img
+                  src={bolabg}
+                  alt="Area Lounge"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/80"></div>
+              </motion.div>
             </div>
           </div>
         </motion.div>

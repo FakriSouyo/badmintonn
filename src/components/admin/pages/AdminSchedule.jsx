@@ -1,282 +1,207 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { format, parseISO, addDays, startOfWeek, addHours, isSameDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/services/supabaseClient';
-import { format, addDays, parseISO, addHours } from 'date-fns';
-import toast from 'react-hot-toast';
+import { toast } from 'react-toastify';
 
 export const AdminSchedule = () => {
   const [courts, setCourts] = useState([]);
   const [selectedCourt, setSelectedCourt] = useState(null);
-  const [schedules, setSchedules] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [bookings, setBookings] = useState([]);
-
-  const VALID_STATUSES = ['booked', 'available']; // Sesuaikan dengan constraint di database Anda
-
-  const timeSlots = [
-    '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00',
-    '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
-  ];
+  const [schedules, setSchedules] = useState({});
+  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
 
   useEffect(() => {
     fetchCourts();
-
-    // Set up realtime subscription
-    const subscription = supabase
-      .channel('schedule-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, handleRealtimeUpdate)
+    const schedulesSubscription = supabase
+      .channel('public:schedules')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, handleScheduleChange)
       .subscribe();
 
-    // Clean up subscription on component unmount
     return () => {
-      subscription.unsubscribe();
+      supabase.removeChannel(schedulesSubscription);
     };
   }, []);
 
   useEffect(() => {
     if (selectedCourt) {
-      fetchSchedulesAndBookings();
+      fetchSchedules();
     }
-  }, [selectedCourt, selectedDate]);
+  }, [selectedCourt, currentWeekStart]);
 
-  const handleRealtimeUpdate = (payload) => {
-    console.log('Realtime update received:', payload);
-    // Refresh schedules when there's an update
-    fetchSchedulesAndBookings();
-  };
+  const handleScheduleChange = useCallback((payload) => {
+    console.log('Schedule change received:', payload);
+    setSchedules(prevSchedules => {
+      const newSchedule = payload.new;
+      const key = `${newSchedule.court_id}-${newSchedule.date}-${newSchedule.start_time}`;
+      return { ...prevSchedules, [key]: newSchedule };
+    });
+  }, []);
 
   const fetchCourts = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase.from('courts').select('*');
-      if (error) throw error;
-      console.log('Courts fetched:', data);
-      setCourts(data);
-      if (data.length > 0) setSelectedCourt(data[0].id);
-    } catch (error) {
+    const { data, error } = await supabase.from('courts').select('*');
+    if (error) {
       console.error('Error fetching courts:', error);
-      setError('Failed to fetch courts');
       toast.error('Gagal mengambil data lapangan');
-    } finally {
-      setLoading(false);
+    } else {
+      setCourts(data);
+      if (data.length > 0 && !selectedCourt) {
+        setSelectedCourt(data[0].id);
+      }
     }
   };
 
-  const fetchSchedulesAndBookings = async () => {
-    try {
-      setLoading(true);
-      const startDate = format(selectedDate, 'yyyy-MM-dd');
-      const endDate = format(addDays(selectedDate, 6), 'yyyy-MM-dd');
+  const fetchSchedules = async () => {
+    if (!selectedCourt) return;
 
-      console.log('Fetching schedules and bookings with params:', { selectedCourt, startDate, endDate });
+    const weekEnd = addDays(currentWeekStart, 6);
+    const { data, error } = await supabase
+      .from('schedules')
+      .select('*')
+      .eq('court_id', selectedCourt)
+      .gte('date', format(currentWeekStart, 'yyyy-MM-dd'))
+      .lte('date', format(weekEnd, 'yyyy-MM-dd'));
 
-      const [schedulesResponse, bookingsResponse] = await Promise.all([
-        supabase
-          .from('schedules')
-          .select('*')
-          .eq('court_id', selectedCourt)
-          .gte('date', startDate)
-          .lte('date', endDate),
-        supabase
-          .from('bookings')
-          .select('*')
-          .eq('court_id', selectedCourt)
-          .gte('booking_date', startDate)
-          .lte('booking_date', endDate)
-      ]);
-
-      if (schedulesResponse.error) throw schedulesResponse.error;
-      if (bookingsResponse.error) throw bookingsResponse.error;
-
-      console.log('Schedules fetched:', schedulesResponse.data);
-      console.log('Bookings fetched:', bookingsResponse.data);
-      setSchedules(schedulesResponse.data);
-      setBookings(bookingsResponse.data);
-    } catch (error) {
-      console.error('Error fetching schedules and bookings:', error);
-      setError('Failed to fetch schedules and bookings');
-      toast.error('Gagal mengambil data jadwal dan pemesanan');
-    } finally {
-      setLoading(false);
+    if (error) {
+      console.error('Error fetching schedules:', error);
+      toast.error('Gagal mengambil data jadwal');
+    } else {
+      const schedulesMap = {};
+      data.forEach(schedule => {
+        const key = `${schedule.court_id}-${schedule.date}-${schedule.start_time}`;
+        schedulesMap[key] = schedule;
+      });
+      setSchedules(schedulesMap);
     }
   };
 
-  const getSlotStatus = (date, time) => {
-    const formattedDate = format(date, 'yyyy-MM-dd');
-    const schedule = schedules.find(s => s.date === formattedDate && s.start_time === time);
-    if (schedule) return schedule.status;
-    return 'available';
-  };
-
-  const days = [...Array(7)].map((_, index) => {
-    const date = addDays(selectedDate, index);
-    return {
-      date: date,
-      displayDate: format(date, 'd MMM'),
-      dayName: format(date, 'EEEE')
-    };
-  });
-
-  const updateSlotStatus = async (date, time, currentStatus) => {
-    const formattedDate = format(date, 'yyyy-MM-dd');
-    const endTime = format(addHours(parseISO(`${formattedDate}T${time}`), 1), 'HH:mm');
-
+  const updateScheduleStatus = async (courtId, date, time, newStatus) => {
     try {
-      const newStatus = currentStatus === 'booked' ? 'available' : 'booked';
+      const startTime = time;
+      const endTime = format(addHours(parseISO(`${date}T${time}`), 1), 'HH:mm');
 
       const { data, error } = await supabase
         .from('schedules')
         .upsert({
-          court_id: selectedCourt,
-          date: formattedDate,
-          start_time: time,
+          court_id: courtId,
+          date: date,
+          start_time: startTime,
           end_time: endTime,
-          status: newStatus
-        }, { onConflict: ['court_id', 'date', 'start_time'] });
+          status: newStatus,
+        }, { onConflict: ['court_id', 'date', 'start_time'] })
+        .select();
 
       if (error) throw error;
 
-      // Update local state immediately
-      setSchedules(prevSchedules => {
-        const updatedSchedules = [...prevSchedules];
-        const index = updatedSchedules.findIndex(s => 
-          s.court_id === selectedCourt && s.date === formattedDate && s.start_time === time
-        );
-        if (index !== -1) {
-          updatedSchedules[index].status = newStatus;
-        } else {
-          updatedSchedules.push({
-            court_id: selectedCourt,
-            date: formattedDate,
-            start_time: time,
-            end_time: endTime,
-            status: newStatus
-          });
-        }
-        return updatedSchedules;
-      });
-
-      toast.success(`Status slot diperbarui menjadi ${newStatus}`);
+      console.log('Schedule updated in database:', data[0]);
+      const key = `${courtId}-${date}-${startTime}`;
+      setSchedules(prevSchedules => ({
+        ...prevSchedules,
+        [key]: data[0]
+      }));
+      toast.success('Jadwal berhasil diperbarui');
     } catch (error) {
-      console.error('Error updating slot status:', error);
-      toast.error(`Gagal memperbarui status slot: ${error.message}`);
+      console.error('Error updating schedule status:', error);
+      toast.error('Gagal memperbarui status jadwal');
     }
   };
 
-  const handleSlotClick = (date, time, status) => {
-    setSelectedSlot({ date, time, status });
+  const renderTimeSlots = () => {
+    const timeSlots = [];
+    for (let i = 6; i < 22; i++) {
+      timeSlots.push(`${i.toString().padStart(2, '0')}:00`);
+    }
+    return timeSlots;
   };
 
-  const SlotStatusDialog = () => (
-    <Dialog open={!!selectedSlot} onOpenChange={() => setSelectedSlot(null)}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Perbarui Status Slot</DialogTitle>
-          <DialogDescription>
-            Ubah status slot waktu ini.
-          </DialogDescription>
-        </DialogHeader>
-        {selectedSlot && (
-          <div>
-            <p>Tanggal: {format(selectedSlot.date, 'dd/MM/yyyy')}</p>
-            <p>Waktu: {selectedSlot.time}</p>
-            <p>Status Saat Ini: {selectedSlot.status}</p>
-            {selectedSlot.status === 'booked' && (
-              <p className="text-red-500">Peringatan: Mengubah status slot yang sudah dipesan akan membatalkan pemesanan yang ada.</p>
-            )}
-          </div>
-        )}
-        <DialogFooter>
-          <Button onClick={() => {
-            if (selectedSlot) {
-              updateSlotStatus(selectedSlot.date, selectedSlot.time, selectedSlot.status);
-              setSelectedSlot(null);
-            }
-          }} className="mt-4">
-            Ubah Status
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+  const renderWeekDays = () => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const day = addDays(currentWeekStart, i);
+      return (
+        <th key={i} className="px-4 py-2 border">
+          {format(day, 'EEE dd/MM')}
+        </th>
+      );
+    });
+  };
+
+  const getScheduleForSlot = (date, time) => {
+    const key = `${selectedCourt}-${format(date, 'yyyy-MM-dd')}-${time}`;
+    return schedules[key] || { status: 'available' };
+  };
+
+  const renderScheduleGrid = () => {
+    return renderTimeSlots().map((time) => (
+      <tr key={time}>
+        <td className="px-4 py-2 border font-semibold">{time}</td>
+        {Array.from({ length: 7 }, (_, dayOffset) => {
+          const date = addDays(currentWeekStart, dayOffset);
+          const formattedDate = format(date, 'yyyy-MM-dd');
+          const schedule = getScheduleForSlot(date, time);
+          return (
+            <td key={`${formattedDate}-${time}`} className="px-4 py-2 border">
+              <Select
+                value={schedule.status}
+                onValueChange={(value) => updateScheduleStatus(selectedCourt, formattedDate, time, value)}
+              >
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="booked">Booked</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                </SelectContent>
+              </Select>
+            </td>
+          );
+        })}
+      </tr>
+    ));
+  };
 
   return (
     <div className="p-4">
-      <h2 className="text-2xl font-bold mb-4">Manajemen Jadwal Lapangan</h2>
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-          <strong className="font-bold">Error:</strong>
-          <span className="block sm:inline"> {error}</span>
-        </div>
-      )}
-      {loading ? (
-        <div className="text-center py-10">
-          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4">Loading...</p>
-        </div>
-      ) : (
-        <>
-          <div className="mb-4 flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
-            <Select onValueChange={(value) => setSelectedCourt(value)} value={selectedCourt}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Pilih lapangan" />
-              </SelectTrigger>
-              <SelectContent>
-                {courts.map((court) => (
-                  <SelectItem key={court.id} value={court.id}>{court.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex space-x-2">
-              <Button onClick={() => setSelectedDate(addDays(selectedDate, -7))} className="flex-1">Minggu Sebelumnya</Button>
-              <Button onClick={() => setSelectedDate(addDays(selectedDate, 7))} className="flex-1">Minggu Selanjutnya</Button>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="sticky left-0 bg-white z-10">Waktu</TableHead>
-                  {days.map((day) => (
-                    <TableHead key={day.date.toISOString()} className="min-w-[100px]">
-                      <div className="text-sm">{day.dayName}</div>
-                      <div>{day.displayDate}</div>
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {timeSlots.map((time) => (
-                  <TableRow key={time}>
-                    <TableCell className="sticky left-0 bg-white z-10">{time}</TableCell>
-                    {days.map((day) => {
-                      const status = getSlotStatus(day.date, time);
-                      return (
-                        <TableCell
-                          key={`${day.date.toISOString()}-${time}`}
-                          className={`cursor-pointer ${
-                            status === 'booked' ? 'bg-red-100' : 'bg-green-100'
-                          }`}
-                          onClick={() => handleSlotClick(day.date, time, status)}
-                        >
-                          {status === 'booked' ? 'Dipesan' : 'Tersedia'}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </>
-      )}
-      <SlotStatusDialog />
+      <h2 className="text-2xl font-bold mb-4">Kelola Jadwal Lapangan</h2>
+      <div className="mb-4">
+        <Select value={selectedCourt} onValueChange={setSelectedCourt}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Pilih Lapangan" />
+          </SelectTrigger>
+          <SelectContent>
+            {courts.map((court) => (
+              <SelectItem key={court.id} value={court.id}>
+                {court.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="mb-4 flex justify-between items-center">
+        <Button onClick={() => setCurrentWeekStart(addDays(currentWeekStart, -7))}>
+          Minggu Sebelumnya
+        </Button>
+        <span className="font-semibold">
+          {format(currentWeekStart, 'dd/MM/yyyy')} - {format(addDays(currentWeekStart, 6), 'dd/MM/yyyy')}
+        </span>
+        <Button onClick={() => setCurrentWeekStart(addDays(currentWeekStart, 7))}>
+          Minggu Selanjutnya
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse border">
+          <thead>
+            <tr>
+              <th className="px-4 py-2 border">Waktu</th>
+              {renderWeekDays()}
+            </tr>
+          </thead>
+          <tbody>
+            {renderScheduleGrid()}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

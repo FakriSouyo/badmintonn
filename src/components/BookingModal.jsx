@@ -104,8 +104,8 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
     return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   };
 
-  const timeSlots = Array.from({ length: 14 }, (_, i) => {
-    const hour = i + 8; // Start from 8 AM
+  const timeSlots = Array.from({ length: 18 }, (_, i) => {
+    const hour = i + 6; // Start from 6 AM
     return `${hour.toString().padStart(2, '0')}:00`;
   });
 
