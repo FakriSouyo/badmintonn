@@ -27,19 +27,18 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  useEffect(() => {
-    if (!loading) {
-      if (user && user.is_admin) {
-        // If user is admin and not already on an admin page, redirect to admin dashboard
-        if (!location.pathname.startsWith('/admin')) {
-          navigate('/admin/dashboard');
-        }
-      } else if (location.pathname.startsWith('/admin')) {
-        // If non-admin user is on an admin page, redirect to home
-        navigate('/');
-      }
-    }
-  }, [user, loading, navigate, location]);
+  // Komentar useEffect sementara
+  // useEffect(() => {
+  //   if (!loading) {
+  //     if (user && user.is_admin) {
+  //       if (!location.pathname.startsWith('/admin')) {
+  //         navigate('/admin/dashboard');
+  //       }
+  //     } else if (location.pathname.startsWith('/admin')) {
+  //       navigate('/');
+  //     }
+  //   }
+  // }, [user, loading, navigate, location]);
 
   const handleBookingInitiated = (bookingData) => {
     setInitialBookingData(bookingData);
@@ -59,13 +58,7 @@ function AppContent() {
       <Routes>
         <Route 
           path="/admin/*" 
-          element={
-            user && user.is_admin ? (
-              <AdminDashboard />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          } 
+          element={<AdminDashboard />} // Hapus pengecekan user.is_admin
         />
         <Route path="/not-found" element={<NotFound />} />
         <Route

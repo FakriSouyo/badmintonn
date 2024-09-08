@@ -5,28 +5,29 @@ import { Courts } from './pages/Courts';
 import { Bookings } from './pages/Bookings';
 import { Payments } from './pages/Payments';
 import { AdminSchedule } from './pages/AdminSchedule';
-import { useAuth } from '@/contexts/AuthContext';
+// import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar, SidebarBody, SidebarLink, SidebarHeader, SidebarProvider } from '@/components/ui/sidebar';
 import { FiHome, FiCalendar, FiBookOpen, FiDollarSign, FiLogOut } from 'react-icons/fi';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
 const AdminDashboard = () => {
-  const { user, loading, logout } = useAuth();
+  // const { user, loading, logout } = useAuth();
   const location = useLocation();
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
+  // Hapus pengecekan loading dan user
+  // if (loading) {
+  //   return (
+  //     <div className="flex items-center justify-center h-screen">
+  //       <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+  //     </div>
+  //   );
+  // }
 
-  if (!user || !user.is_admin) {
-    return <Navigate to="/login" replace />;
-  }
+  // if (!user || !user.is_admin) {
+  //   return <Navigate to="/login" replace />;
+  // }
 
   const navItems = [
     { label: 'Dashboard', icon: <FiHome />, href: '/admin/dashboard' },
@@ -41,7 +42,7 @@ const AdminDashboard = () => {
   };
 
   const confirmLogout = () => {
-    logout();
+    // logout();
     setIsLogoutDialogOpen(false);
   };
 
