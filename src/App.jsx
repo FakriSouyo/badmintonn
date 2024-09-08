@@ -27,18 +27,18 @@ function AppContent() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Komentar useEffect sementara
-  // useEffect(() => {
-  //   if (!loading) {
-  //     if (user && user.is_admin) {
-  //       if (!location.pathname.startsWith('/admin')) {
-  //         navigate('/admin/dashboard');
-  //       }
-  //     } else if (location.pathname.startsWith('/admin')) {
-  //       navigate('/');
-  //     }
-  //   }
-  // }, [user, loading, navigate, location]);
+  // Mengembalikan useEffect
+  useEffect(() => {
+    if (!loading) {
+      if (user && user.is_admin) {
+        if (!location.pathname.startsWith('/admin')) {
+          navigate('/admin/dashboard');
+        }
+      } else if (location.pathname.startsWith('/admin')) {
+        navigate('/');
+      }
+    }
+  }, [user, loading, navigate, location]);
 
   const handleBookingInitiated = (bookingData) => {
     setInitialBookingData(bookingData);
@@ -58,7 +58,13 @@ function AppContent() {
       <Routes>
         <Route 
           path="/admin/*" 
-          element={<AdminDashboard />} // Hapus pengecekan user.is_admin
+          element={
+            user && user.is_admin ? (
+              <AdminDashboard />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          } 
         />
         <Route path="/not-found" element={<NotFound />} />
         <Route
