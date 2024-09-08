@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/services/supabaseClient';
 import { format, parseISO, addHours } from 'date-fns';
@@ -12,9 +12,12 @@ import * as XLSX from 'xlsx';
 export const Payments = () => {
   const [payments, setPayments] = useState([]);
   const [selectedPayment, setSelectedPayment] = useState(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState(null);
 
   useEffect(() => {
     fetchPayments();
+    subscribeToBookingChanges();
   }, []);
 
   const fetchPayments = async () => {
@@ -39,26 +42,72 @@ export const Payments = () => {
     }
   };
 
+  const subscribeToBookingChanges = () => {
+    const subscription = supabase
+      .channel('public:bookings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, handleBookingChange)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  };
+
+  const handleBookingChange = (payload) => {
+    console.log('Booking change received:', payload);
+    if (payload.eventType === 'UPDATE') {
+      setPayments(prevPayments => 
+        prevPayments.map(payment => 
+          payment.id === payload.new.id ? { ...payment, ...payload.new } : payment
+        )
+      );
+    }
+  };
+
   const updatePaymentStatus = async (id, newStatus) => {
     try {
+      // Perbarui status pembayaran dan status pemesanan sekaligus
       const { data, error } = await supabase
         .from('bookings')
-        .update({ payment_status: newStatus })
+        .update({ 
+          payment_status: newStatus,
+          status: mapPaymentStatusToBookingStatus(newStatus)
+        })
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
 
+      // Perbarui jadwal jika diperlukan
+      if (newStatus === 'paid') {
+        await updateScheduleToBooked(data);
+      } else if (newStatus === 'cancelled' || newStatus === 'failed') {
+        await updateScheduleToAvailable(data);
+      }
+
       fetchPayments();
-      toast.success(`Status pembayaran berhasil diubah menjadi ${newStatus}`);
+      toast.success(`Status pembayaran dan pemesanan berhasil diubah menjadi ${newStatus}`);
     } catch (error) {
       console.error('Error updating payment status:', error);
-      toast.error('Gagal mengubah status pembayaran');
+      toast.error('Gagal mengubah status pembayaran dan pemesanan');
     }
   };
 
-  const updateBookingAndSchedule = async (booking) => {
+  const mapPaymentStatusToBookingStatus = (paymentStatus) => {
+    switch (paymentStatus) {
+      case 'paid':
+        return 'confirmed';
+      case 'cancelled':
+        return 'cancelled';
+      case 'failed':
+        return 'cancelled';
+      default:
+        return 'pending';
+    }
+  };
+
+  const updateScheduleToBooked = async (booking) => {
     try {
       const startTime = parseISO(`${booking.booking_date}T${booking.start_time}`);
       const endTime = parseISO(`${booking.booking_date}T${booking.end_time}`);
@@ -72,7 +121,7 @@ export const Payments = () => {
             date: format(currentTime, 'yyyy-MM-dd'),
             start_time: format(currentTime, 'HH:mm'),
             end_time: format(addHours(currentTime, 1), 'HH:mm'),
-            status: 'confirmed',
+            status: 'booked',
             user_id: booking.user_id
           }, { onConflict: ['court_id', 'date', 'start_time'] });
 
@@ -81,14 +130,14 @@ export const Payments = () => {
         currentTime = addHours(currentTime, 1);
       }
 
-      console.log('Jadwal berhasil diperbarui');
+      console.log('Jadwal berhasil diperbarui menjadi dipesan');
     } catch (error) {
-      console.error('Error updating schedule:', error);
-      toast.error('Gagal memperbarui jadwal');
+      console.error('Error updating schedule to booked:', error);
+      toast.error('Gagal memperbarui jadwal menjadi dipesan');
     }
   };
 
-  const freeUpSchedule = async (booking) => {
+  const updateScheduleToAvailable = async (booking) => {
     try {
       const startTime = parseISO(`${booking.booking_date}T${booking.start_time}`);
       const endTime = parseISO(`${booking.booking_date}T${booking.end_time}`);
@@ -102,7 +151,7 @@ export const Payments = () => {
             date: format(currentTime, 'yyyy-MM-dd'),
             start_time: format(currentTime, 'HH:mm'),
             end_time: format(addHours(currentTime, 1), 'HH:mm'),
-            status: 'pending',
+            status: 'available',
             user_id: null
           }, { onConflict: ['court_id', 'date', 'start_time'] });
 
@@ -111,11 +160,47 @@ export const Payments = () => {
         currentTime = addHours(currentTime, 1);
       }
 
-      console.log('Jadwal berhasil dibebaskan');
+      console.log('Jadwal berhasil diperbarui menjadi tersedia');
     } catch (error) {
-      console.error('Error freeing up schedule:', error);
-      toast.error('Gagal membebaskan jadwal');
+      console.error('Error updating schedule to available:', error);
+      toast.error('Gagal memperbarui jadwal menjadi tersedia');
     }
+  };
+
+  const deletePayment = async (id) => {
+    try {
+      // Pertama, periksa apakah pembayaran masih ada
+      const { data: existingPayment, error: checkError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (checkError) {
+        if (checkError.code === 'PGRST116') {
+          // Pembayaran tidak ditemukan, mungkin sudah dihapus
+          toast.info('Pembayaran tidak ditemukan atau sudah dihapus');
+          fetchPayments(); // Refresh daftar pembayaran
+          return;
+        }
+        throw checkError;
+      }
+
+      // Jika pembayaran ditemukan, lanjutkan dengan penghapusan
+      const { error: deleteError } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) throw deleteError;
+
+      toast.success('Pembayaran berhasil dihapus');
+      fetchPayments(); // Refresh daftar pembayaran
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      toast.error('Gagal menghapus pembayaran: ' + error.message);
+    }
+    setIsDeleteDialogOpen(false);
   };
 
   const downloadExcel = () => {
@@ -136,7 +221,7 @@ export const Payments = () => {
     <div className="p-4">
       <h2 className="text-2xl font-bold mb-4">Kelola Pembayaran</h2>
       <div className="mb-4">
-        <Button onClick={downloadExcel} className="flex items-center gap-2">
+        <Button onClick={downloadExcel} className="w-full sm:w-auto flex items-center justify-center gap-2">
           <FiDownload /> Download Excel
         </Button>
       </div>
@@ -149,13 +234,14 @@ export const Payments = () => {
               <TableHead className="hidden md:table-cell">Lapangan</TableHead>
               <TableHead>Jumlah</TableHead>
               <TableHead className="hidden md:table-cell">Metode Pembayaran</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Status Pembayaran</TableHead>
+              <TableHead className="hidden md:table-cell">Status Pemesanan</TableHead>
               <TableHead>Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {payments.map((payment) => (
-              <TableRow key={payment.id} className="flex flex-col md:table-row">
+              <TableRow key={payment.id}>
                 <TableCell className="hidden md:table-cell">{format(new Date(payment.created_at), 'dd/MM/yyyy HH:mm')}</TableCell>
                 <TableCell>{payment.users.email}</TableCell>
                 <TableCell className="hidden md:table-cell">{payment.courts.name}</TableCell>
@@ -166,7 +252,7 @@ export const Payments = () => {
                     onValueChange={(value) => updatePaymentStatus(payment.id, value)}
                     defaultValue={payment.payment_status}
                   >
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-full md:w-[180px]">
                       <SelectValue placeholder="Status Pembayaran" />
                     </SelectTrigger>
                     <SelectContent>
@@ -177,58 +263,85 @@ export const Payments = () => {
                     </SelectContent>
                   </Select>
                 </TableCell>
-                <TableCell className="flex flex-wrap gap-2">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setSelectedPayment(payment)}
-                        title="Detail"
-                      >
-                        <FiInfo className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="w-full max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Detail Pembayaran</DialogTitle>
-                      </DialogHeader>
-                      {selectedPayment && (
-                        <div className="space-y-2">
-                          <p><strong>Pengguna:</strong> {selectedPayment.users.email}</p>
-                          <p><strong>Lapangan:</strong> {selectedPayment.courts.name}</p>
-                          <p><strong>Jumlah:</strong> Rp {selectedPayment.total_price.toLocaleString()}</p>
-                          <p><strong>Metode Pembayaran:</strong> {selectedPayment.payment_method}</p>
-                          <p><strong>Status:</strong> {selectedPayment.payment_status}</p>
-                          <p><strong>Tanggal:</strong> {format(new Date(selectedPayment.created_at), 'dd/MM/yyyy HH:mm')}</p>
-                          {selectedPayment.proof_of_payment_url && (
-                            <div>
-                              <p><strong>Bukti Pembayaran:</strong></p>
-                              <img 
-                                src={selectedPayment.proof_of_payment_url} 
-                                alt="Bukti Pembayaran" 
-                                className="w-full h-auto mt-2 rounded-lg shadow-lg"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </DialogContent>
-                  </Dialog>
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    onClick={() => deletePayment(payment.id)}
-                    title="Hapus"
-                  >
-                    <FiTrash2 className="h-4 w-4" />
-                  </Button>
+                <TableCell className="hidden md:table-cell">{payment.status}</TableCell>
+                <TableCell>
+                  <div className="flex flex-col md:flex-row gap-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedPayment(payment)}
+                          title="Detail"
+                          className="w-full md:w-auto flex items-center justify-center gap-2"
+                        >
+                          <FiInfo className="md:hidden" /> <span className="hidden md:inline">Detail</span>
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="w-full max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Detail Pembayaran</DialogTitle>
+                        </DialogHeader>
+                        {selectedPayment && (
+                          <div className="space-y-2">
+                            <p><strong>Pengguna:</strong> {selectedPayment.users.email}</p>
+                            <p><strong>Lapangan:</strong> {selectedPayment.courts.name}</p>
+                            <p><strong>Jumlah:</strong> Rp {selectedPayment.total_price.toLocaleString()}</p>
+                            <p><strong>Metode Pembayaran:</strong> {selectedPayment.payment_method}</p>
+                            <p><strong>Status Pembayaran:</strong> {selectedPayment.payment_status}</p>
+                            <p><strong>Status Pemesanan:</strong> {selectedPayment.status}</p>
+                            <p><strong>Tanggal:</strong> {format(new Date(selectedPayment.created_at), 'dd/MM/yyyy HH:mm')}</p>
+                            {selectedPayment.proof_of_payment_url && (
+                              <div>
+                                <p><strong>Bukti Pembayaran:</strong></p>
+                                <img 
+                                  src={selectedPayment.proof_of_payment_url} 
+                                  alt="Bukti Pembayaran" 
+                                  className="w-full h-auto mt-2 rounded-lg shadow-lg"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </DialogContent>
+                    </Dialog>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        setPaymentToDelete(payment);
+                        setIsDeleteDialogOpen(true);
+                      }}
+                      title="Hapus"
+                      className="w-full md:w-auto flex items-center justify-center gap-2"
+                    >
+                      <FiTrash2 className="md:hidden" /> <span className="hidden md:inline">Hapus</span>
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Konfirmasi Penghapusan</DialogTitle>
+          </DialogHeader>
+          <DialogDescription>
+            Apakah Anda yakin ingin menghapus pembayaran ini? Tindakan ini tidak dapat dibatalkan.
+          </DialogDescription>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button variant="destructive" onClick={() => deletePayment(paymentToDelete.id)}>
+              Hapus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

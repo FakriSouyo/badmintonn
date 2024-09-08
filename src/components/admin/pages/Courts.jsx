@@ -3,13 +3,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/services/supabaseClient';
+import { FiPlus, FiEdit, FiTrash2, FiImage, FiDollarSign, FiType, FiFileText } from 'react-icons/fi';
 
 export const Courts = () => {
   const [courts, setCourts] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [currentCourt, setCurrentCourt] = useState({ name: '', hourly_rate: '', court_img: null });
+  const [currentCourt, setCurrentCourt] = useState({ name: '', hourly_rate: '', court_img: null, description: '' });
   const [imageFile, setImageFile] = useState(null);
   const [error, setError] = useState(null);
 
@@ -50,7 +52,11 @@ export const Courts = () => {
   const handleAddCourt = async () => {
     const { data, error } = await supabase
       .from('courts')
-      .insert([{ name: currentCourt.name, hourly_rate: parseFloat(currentCourt.hourly_rate) }])
+      .insert([{ 
+        name: currentCourt.name, 
+        hourly_rate: parseFloat(currentCourt.hourly_rate),
+        description: currentCourt.description
+      }])
       .select();
 
     if (error) {
@@ -67,7 +73,7 @@ export const Courts = () => {
       }
       fetchCourts();
       setIsAddModalOpen(false);
-      setCurrentCourt({ name: '', hourly_rate: '', court_img: null });
+      setCurrentCourt({ name: '', hourly_rate: '', court_img: null, description: '' });
       setImageFile(null);
     }
   };
@@ -75,7 +81,8 @@ export const Courts = () => {
   const handleUpdateCourt = async () => {
     let updateData = { 
       name: currentCourt.name, 
-      hourly_rate: parseFloat(currentCourt.hourly_rate)
+      hourly_rate: parseFloat(currentCourt.hourly_rate),
+      description: currentCourt.description
     };
 
     if (imageFile) {
@@ -119,7 +126,9 @@ export const Courts = () => {
   return (
     <div className="p-4">
       <h2 className="text-2xl font-bold mb-4">Kelola Lapangan</h2>
-      <Button onClick={() => setIsAddModalOpen(true)} className="mb-4 w-full sm:w-auto">Tambah Lapangan Baru</Button>
+      <Button onClick={() => setIsAddModalOpen(true)} className="mb-4 w-full sm:w-auto flex items-center justify-center gap-2">
+        <FiPlus /> Tambah Lapangan Baru
+      </Button>
       {courts.length === 0 ? (
         <p>Tidak ada lapangan tersedia</p>
       ) : (
@@ -128,7 +137,8 @@ export const Courts = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Nama</TableHead>
-                <TableHead>Tarif per Jam</TableHead>
+                <TableHead className="hidden sm:table-cell">Tarif per Jam</TableHead>
+                <TableHead className="hidden sm:table-cell">Deskripsi</TableHead>
                 <TableHead>Aksi</TableHead>
               </TableRow>
             </TableHeader>
@@ -136,27 +146,28 @@ export const Courts = () => {
               {courts.map((court) => (
                 <TableRow key={court.id}>
                   <TableCell className="font-medium">{court.name}</TableCell>
-                  <TableCell>Rp {court.hourly_rate.toLocaleString()}</TableCell>
+                  <TableCell className="hidden sm:table-cell">Rp {court.hourly_rate.toLocaleString()}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{court.description}</TableCell>
                   <TableCell>
-                    <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full sm:w-auto"
+                        className="flex-grow sm:flex-grow-0 flex items-center justify-center gap-2"
                         onClick={() => {
                           setCurrentCourt(court);
                           setIsEditModalOpen(true);
                         }}
                       >
-                        Edit
+                        <FiEdit className="sm:hidden" /> <span className="hidden sm:inline">Edit</span>
                       </Button>
                       <Button
                         variant="destructive"
                         size="sm"
-                        className="w-full sm:w-auto"
+                        className="flex-grow sm:flex-grow-0 flex items-center justify-center gap-2"
                         onClick={() => handleDeleteCourt(court.id)}
                       >
-                        Hapus
+                        <FiTrash2 className="sm:hidden" /> <span className="hidden sm:inline">Hapus</span>
                       </Button>
                     </div>
                   </TableCell>
@@ -173,22 +184,39 @@ export const Courts = () => {
             <DialogTitle>Tambah Lapangan Baru</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <Input
-              placeholder="Nama Lapangan"
-              value={currentCourt.name}
-              onChange={(e) => setCurrentCourt({ ...currentCourt, name: e.target.value })}
-            />
-            <Input
-              placeholder="Tarif per Jam"
-              type="number"
-              value={currentCourt.hourly_rate}
-              onChange={(e) => setCurrentCourt({ ...currentCourt, hourly_rate: e.target.value })}
-            />
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-            />
+            <div className="flex items-center gap-2">
+              <FiType className="text-gray-500" />
+              <Input
+                placeholder="Nama Lapangan"
+                value={currentCourt.name}
+                onChange={(e) => setCurrentCourt({ ...currentCourt, name: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <FiDollarSign className="text-gray-500" />
+              <Input
+                placeholder="Tarif per Jam"
+                type="number"
+                value={currentCourt.hourly_rate}
+                onChange={(e) => setCurrentCourt({ ...currentCourt, hourly_rate: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <FiFileText className="text-gray-500" />
+              <Textarea
+                placeholder="Deskripsi Lapangan"
+                value={currentCourt.description}
+                onChange={(e) => setCurrentCourt({ ...currentCourt, description: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <FiImage className="text-gray-500" />
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button onClick={handleAddCourt} className="w-full">Tambah Lapangan</Button>
@@ -202,22 +230,39 @@ export const Courts = () => {
             <DialogTitle>Edit Lapangan</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <Input
-              placeholder="Nama Lapangan"
-              value={currentCourt.name}
-              onChange={(e) => setCurrentCourt({ ...currentCourt, name: e.target.value })}
-            />
-            <Input
-              placeholder="Tarif per Jam"
-              type="number"
-              value={currentCourt.hourly_rate}
-              onChange={(e) => setCurrentCourt({ ...currentCourt, hourly_rate: e.target.value })}
-            />
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-            />
+            <div className="flex items-center gap-2">
+              <FiType className="text-gray-500" />
+              <Input
+                placeholder="Nama Lapangan"
+                value={currentCourt.name}
+                onChange={(e) => setCurrentCourt({ ...currentCourt, name: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <FiDollarSign className="text-gray-500" />
+              <Input
+                placeholder="Tarif per Jam"
+                type="number"
+                value={currentCourt.hourly_rate}
+                onChange={(e) => setCurrentCourt({ ...currentCourt, hourly_rate: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <FiFileText className="text-gray-500" />
+              <Textarea
+                placeholder="Deskripsi Lapangan"
+                value={currentCourt.description}
+                onChange={(e) => setCurrentCourt({ ...currentCourt, description: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <FiImage className="text-gray-500" />
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+              />
+            </div>
             {currentCourt.court_img && (
               <img 
                 src={`${supabase.storage.from('imgcourt').getPublicUrl(currentCourt.court_img).data.publicUrl}`} 

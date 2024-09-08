@@ -11,7 +11,7 @@ export const AdminSchedule = () => {
   const [schedules, setSchedules] = useState({});
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
 
-  useEffect(() => {
+    useEffect(() => {
     fetchCourts();
     const schedulesSubscription = supabase
       .channel('public:schedules')
@@ -166,7 +166,7 @@ export const AdminSchedule = () => {
       <h2 className="text-2xl font-bold mb-4">Kelola Jadwal Lapangan</h2>
       <div className="mb-4">
         <Select value={selectedCourt} onValueChange={setSelectedCourt}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="Pilih Lapangan" />
           </SelectTrigger>
           <SelectContent>
@@ -178,14 +178,14 @@ export const AdminSchedule = () => {
           </SelectContent>
         </Select>
       </div>
-      <div className="mb-4 flex justify-between items-center">
-        <Button onClick={() => setCurrentWeekStart(addDays(currentWeekStart, -7))}>
+      <div className="mb-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+        <Button onClick={() => setCurrentWeekStart(addDays(currentWeekStart, -7))} className="w-full sm:w-auto">
           Minggu Sebelumnya
         </Button>
-        <span className="font-semibold">
+        <span className="font-semibold text-center">
           {format(currentWeekStart, 'dd/MM/yyyy')} - {format(addDays(currentWeekStart, 6), 'dd/MM/yyyy')}
         </span>
-        <Button onClick={() => setCurrentWeekStart(addDays(currentWeekStart, 7))}>
+        <Button onClick={() => setCurrentWeekStart(addDays(currentWeekStart, 7))} className="w-full sm:w-auto">
           Minggu Selanjutnya
         </Button>
       </div>

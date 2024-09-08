@@ -1,8 +1,29 @@
-// src/admin/pages/Dashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/services/supabaseClient';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { FiUsers, FiCalendar, FiDollarSign } from 'react-icons/fi';
+
+const CustomXAxis = ({ ...props }) => (
+  <XAxis
+    stroke="#888888"
+    fontSize={12}
+    tickLine={false}
+    axisLine={false}
+    {...props}
+  />
+);
+
+const CustomYAxis = ({ tickFormatter, ...props }) => (
+  <YAxis
+    tickFormatter={tickFormatter || (value => `Rp${value}`)}
+    stroke="#888888"
+    fontSize={12}
+    tickLine={false}
+    axisLine={false}
+    {...props}
+  />
+);
 
 export const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -10,12 +31,12 @@ export const Dashboard = () => {
     totalBookings: 0,
     activeBookings: 0,
   });
-  const [monthlyRevenue, setMonthlyRevenue] = useState([]);
+  const [dailyRevenue, setDailyRevenue] = useState([]);
   const [popularCourts, setPopularCourts] = useState([]);
 
   useEffect(() => {
     fetchDashboardStats();
-    fetchMonthlyRevenue();
+    fetchDailyRevenue();
     fetchPopularCourts();
   }, []);
 
@@ -37,7 +58,7 @@ export const Dashboard = () => {
     }
   };
 
-  const fetchMonthlyRevenue = async () => {
+  const fetchDailyRevenue = async () => {
     try {
       const { data, error } = await supabase
         .from('bookings')
@@ -46,18 +67,18 @@ export const Dashboard = () => {
 
       if (error) throw error;
 
-      const monthlyData = data.reduce((acc, booking) => {
-        const month = new Date(booking.created_at).toLocaleString('id-ID', { month: 'long' });
-        if (!acc[month]) {
-          acc[month] = 0;
+      const dailyData = data.reduce((acc, booking) => {
+        const date = new Date(booking.created_at).toLocaleDateString('id-ID');
+        if (!acc[date]) {
+          acc[date] = 0;
         }
-        acc[month] += booking.total_price;
+        acc[date] += booking.total_price;
         return acc;
       }, {});
 
-      setMonthlyRevenue(Object.entries(monthlyData).map(([month, revenue]) => ({ month, revenue })));
+      setDailyRevenue(Object.entries(dailyData).map(([name, total]) => ({ name, total })));
     } catch (error) {
-      console.error('Kesalahan saat mengambil pendapatan bulanan:', error);
+      console.error('Kesalahan saat mengambil pendapatan harian:', error);
     }
   };
 
@@ -86,61 +107,64 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Total Pendapatan</CardTitle>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Pendapatan</CardTitle>
+            <FiDollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-xl sm:text-2xl font-bold">Rp {stats.totalRevenue.toLocaleString()}</p>
+            <div className="text-2xl font-bold">Rp {stats.totalRevenue.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">+20.1% dari bulan lalu</p>
           </CardContent>
         </Card>
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Total Pemesanan</CardTitle>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Pemesanan</CardTitle>
+            <FiCalendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-xl sm:text-2xl font-bold">{stats.totalBookings}</p>
+            <div className="text-2xl font-bold">{stats.totalBookings}</div>
+            <p className="text-xs text-muted-foreground">+180.1% dari bulan lalu</p>
           </CardContent>
         </Card>
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Pemesanan Aktif</CardTitle>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pemesanan Aktif</CardTitle>
+            <FiUsers className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-xl sm:text-2xl font-bold">{stats.activeBookings}</p>
+            <div className="text-2xl font-bold">{stats.activeBookings}</div>
+            <p className="text-xs text-muted-foreground">+19% dari bulan lalu</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="w-full">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Pendapatan Bulanan</CardTitle>
+          <CardTitle>Pendapatan Harian</CardTitle>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyRevenue}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="revenue" fill="#8884d8" name="Pendapatan" />
+        <CardContent className="pl-2">
+          <ResponsiveContainer width="100%" height={350}>
+            <BarChart data={dailyRevenue}>
+              <CustomXAxis dataKey="name" />
+              <CustomYAxis />
+              <Bar dataKey="total" fill="#adfa1d" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      <Card className="w-full">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Lapangan Terpopuler</CardTitle>
+          <CardTitle>Lapangan Terpopuler</CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2">
             {popularCourts.map((court, index) => (
-              <li key={index} className="flex justify-between items-center">
-                <span>{court.name}</span>
-                <span className="font-bold">{court.count} pemesanan</span>
+              <li key={index} className="flex justify-between items-center p-2 bg-secondary rounded-md">
+                <span className="font-medium">{court.name}</span>
+                <span className="text-sm text-muted-foreground">{court.count} pemesanan</span>
               </li>
             ))}
           </ul>
