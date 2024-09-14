@@ -9,6 +9,20 @@ import { FiEye, FiTrash2, FiDownload } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 
+const createNotification = async (userId, message, type) => {
+  try {
+    console.log('Creating notification:', { userId, message, type });
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert({ user_id: userId, message, type });
+
+    if (error) throw error;
+    console.log('Notification created successfully:', data);
+  } catch (error) {
+    console.error('Error creating notification:', error);
+  }
+};
+
 export const Bookings = () => {
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -45,17 +59,38 @@ export const Bookings = () => {
         .eq('id', id)
         .select()
         .single();
-
+  
       if (error) throw error;
-
+  
       if (newStatus === 'confirmed') {
         await updateScheduleToBooked(data);
       } else if (newStatus === 'cancelled' || newStatus === 'finished') {
         await updateScheduleToAvailable(data);
       }
-
+  
+      // Buat notifikasi untuk pengguna
+      let statusIndonesia = '';
+      switch (newStatus) {
+        case 'confirmed':
+          statusIndonesia = 'dikonfirmasi';
+          break;
+        case 'pending':
+          statusIndonesia = 'ditunda';
+          break;
+        case 'cancelled':
+          statusIndonesia = 'dibatalkan';
+          break;
+        case 'finished':
+          statusIndonesia = 'telah selesai';
+          break;
+        default:
+          statusIndonesia = newStatus;
+      }
+      const message = `Status pemesanan Anda telah ${statusIndonesia}.`;
+      await createNotification(data.user_id, message, 'booking');
+  
       fetchBookings();
-      toast.success(`Status pemesanan berhasil diubah menjadi ${newStatus}`);
+      toast.success(`Status pemesanan berhasil diubah menjadi ${statusIndonesia}`);
     } catch (error) {
       console.error('Error updating booking status:', error);
       toast.error('Gagal mengubah status pemesanan');

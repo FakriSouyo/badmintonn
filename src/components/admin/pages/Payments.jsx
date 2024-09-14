@@ -9,6 +9,20 @@ import { FiInfo, FiTrash2, FiDownload } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 
+const createNotification = async (userId, message, type) => {
+  try {
+    console.log('Creating notification:', { userId, message, type });
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert({ user_id: userId, message, type });
+
+    if (error) throw error;
+    console.log('Notification created successfully:', data);
+  } catch (error) {
+    console.error('Error creating notification:', error);
+  }
+};
+
 export const Payments = () => {
   const [payments, setPayments] = useState([]);
   const [selectedPayment, setSelectedPayment] = useState(null);
@@ -76,18 +90,29 @@ export const Payments = () => {
         .eq('id', id)
         .select()
         .single();
-
+  
       if (error) throw error;
-
-      // Perbarui jadwal jika diperlukan
-      if (newStatus === 'paid') {
-        await updateScheduleToBooked(data);
-      } else if (newStatus === 'cancelled' || newStatus === 'failed') {
-        await updateScheduleToAvailable(data);
+  
+      // Buat notifikasi untuk pengguna
+      let statusIndonesia = '';
+      switch (newStatus) {
+        case 'paid':
+          statusIndonesia = 'dikonfirmasi';
+          break;
+        case 'pending':
+          statusIndonesia = 'ditunda';
+          break;
+        case 'cancelled':
+          statusIndonesia = 'dibatalkan';
+          break;
+        case 'failed':
+          statusIndonesia = 'gagal';
+          break;
+        default:
+          statusIndonesia = newStatus;
       }
-
-      fetchPayments();
-      toast.success(`Status pembayaran dan pemesanan berhasil diubah menjadi ${newStatus}`);
+      const message = `Pembayaran pemesanan Anda telah ${statusIndonesia}.`;
+      await createNotification(data.user_id, message, 'payment');
     } catch (error) {
       console.error('Error updating payment status:', error);
       toast.error('Gagal mengubah status pembayaran dan pemesanan');

@@ -3,11 +3,19 @@ import { Link as ScrollLink } from 'react-scroll';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from "./ui/button";
 import { useAuth } from '../contexts/AuthContext';
-import { FiUser, FiLogOut, FiFileText, FiSettings, FiMenu, FiX } from 'react-icons/fi';
+import { FiUser, FiLogOut, FiFileText, FiSettings, FiMenu, FiX, FiBell } from 'react-icons/fi';
 import { supabase } from '../services/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const Navbar = ({ openAuthModal, openBookingModal, openBookingHistory, openProfileModal, onLogout }) => {
+const Navbar = ({ 
+  openAuthModal, 
+  openBookingModal, 
+  openBookingHistory, 
+  openProfileModal, 
+  openNotifikasiModal,
+  onLogout,
+  unreadNotificationCount // Tambahkan prop ini
+}) => {
   const { user } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -106,65 +114,76 @@ const Navbar = ({ openAuthModal, openBookingModal, openBookingHistory, openProfi
           <NavLink to="contact">Kontak</NavLink>
         </div>
         {user ? (
-          <div className="relative" ref={dropdownRef}>
-            <Button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              variant="outline"
-              className="flex items-center space-x-2"
-            >
-              <FiUser className="mr-2" />
-              <span className="hidden md:inline">{fullName}</span>
-            </Button>
-            {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                <button
-                  className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => {
-                    setIsDropdownOpen(false);
-                    openProfileModal();
-                  }}
-                >
-                  <FiUser className="mr-2" />
-                  Profil
-                </button>
-                {user.is_admin && (
-                  <RouterLink
-                    to="/admin"
+          <>
+            <div className="relative" ref={dropdownRef}>
+              <Button
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                variant="outline"
+                className="flex items-center space-x-2"
+              >
+                <FiUser className="mr-2" />
+                <span className="hidden md:inline">{fullName}</span>
+              </Button>
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                  <button
                     className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsDropdownOpen(false)}
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      openProfileModal();
+                    }}
                   >
-                    <FiSettings className="mr-2" />
-                    Dashboard Admin
-                  </RouterLink>
-                )}
-                <button
-                  className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => {
-                    setIsDropdownOpen(false);
-                    openBookingHistory();
-                  }}
-                >
-                  <FiFileText className="mr-2" />
-                  Riwayat Pemesanan
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                >
-                  <FiLogOut className="mr-2" />
-                  Keluar
-                </button>
+                    <FiUser className="mr-2" />
+                    Profil
+                  </button>
+                  {user.is_admin && (
+                    <RouterLink
+                      to="/admin"
+                      className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      <FiSettings className="mr-2" />
+                      Dashboard Admin
+                    </RouterLink>
+                  )}
+                  <button
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      openBookingHistory();
+                    }}
+                  >
+                    <FiFileText className="mr-2" />
+                    Riwayat Pemesanan
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <FiLogOut className="mr-2" />
+                    Keluar
+                  </button>
+                </div>
+              )}
               </div>
+            {!user.is_admin && (
+              <Button
+                onClick={openNotifikasiModal}
+                variant="ghost"
+                className="relative"
+              >
+                <FiBell size={24} />
+                {unreadNotificationCount > 0 && (
+                  <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+                    {unreadNotificationCount}
+                  </span>
+                )}
+              </Button>
             )}
-          </div>
+          </>
         ) : (
           <Button onClick={() => openAuthModal('login')} variant="outline" className="text-sm font-medium">
             Masuk
-          </Button>
-        )}
-        {user && !user.is_admin && (
-          <Button onClick={() => openBookingModal()} className="text-sm font-medium hidden md:inline-flex">
-            Pesan Sekarang
           </Button>
         )}
         <Button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden" variant="ghost">
@@ -187,9 +206,22 @@ const Navbar = ({ openAuthModal, openBookingModal, openBookingHistory, openProfi
               <NavLink to="schedule" onClick={() => setIsMobileMenuOpen(false)}>Jadwal</NavLink>
               <NavLink to="contact" onClick={() => setIsMobileMenuOpen(false)}>Kontak</NavLink>
               {user && !user.is_admin && (
-                <Button onClick={() => {openBookingModal(); setIsMobileMenuOpen(false);}} className="text-sm font-medium w-full mt-2">
-                  Pesan Sekarang
-                </Button>
+                <>
+                  <Button onClick={() => {openBookingModal(); setIsMobileMenuOpen(false);}} className="text-sm font-medium w-full mt-2">
+                    Pesan Sekarang
+                  </Button>
+                  <Button 
+                    onClick={() => {openNotifikasiModal(); setIsMobileMenuOpen(false);}} 
+                    className="text-sm font-medium w-full mt-2 relative"
+                  >
+                    Notifikasi
+                    {unreadNotificationCount > 0 && (
+                      <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+                        {unreadNotificationCount}
+                      </span>
+                    )}
+                  </Button>
+                </>
               )}
             </div>
           </motion.div>

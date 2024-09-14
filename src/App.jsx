@@ -13,9 +13,11 @@ import BookingModal from './components/BookingModal';
 import BookingHistory from './components/BookingHistory';
 import ProfileModal from './components/ProfileModal';
 import AdminDashboard from './components/admin/AdminDashboard';
+import Notifikasi from './components/Notifikasi';
 import { useAuth } from './contexts/AuthContext';
 import { useModal } from './hooks/useModal';
 import NotFound from './components/NotFound';
+import { supabase } from './services/supabaseClient';
 
 function AppContent() {
   const { user, loading, logout } = useAuth();
@@ -23,11 +25,12 @@ function AppContent() {
   const bookingModal = useModal();
   const bookingHistoryModal = useModal();
   const profileModal = useModal();
+  const notifikasiModal = useModal();
   const [initialBookingData, setInitialBookingData] = useState(null);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Mengembalikan useEffect
   useEffect(() => {
     if (!loading) {
       if (user && user.is_admin) {
@@ -40,9 +43,46 @@ function AppContent() {
     }
   }, [user, loading, navigate, location]);
 
+  useEffect(() => {
+    const fetchUnreadNotificationCount = async () => {
+      if (user) {
+        const { count, error } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact' })
+          .eq('user_id', user.id)
+          .eq('is_read', false);
+        if (error) {
+          console.error('Error fetching unread notification count:', error);
+        } else {
+          setUnreadNotificationCount(count);
+        }
+      }
+    };
+    fetchUnreadNotificationCount();
+    
+    // Set up real-time listener for new notifications
+    const subscription = supabase
+      .channel('public:notifications')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
+        if (payload.new.user_id === user.id && !payload.new.is_read) {
+          setUnreadNotificationCount((prevCount) => prevCount + 1);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user]);
+
   const handleBookingInitiated = (bookingData) => {
     setInitialBookingData(bookingData);
     bookingModal.openModal();
+  };
+
+  const handleNotificationOpen = () => {
+    notifikasiModal.openModal();
+    setUnreadNotificationCount(0); // Reset count when opening notifications
   };
 
   if (loading) {
@@ -76,8 +116,10 @@ function AppContent() {
                 openBookingModal={bookingModal.openModal}
                 openBookingHistory={bookingHistoryModal.openModal}
                 openProfileModal={profileModal.openModal}
+                openNotifikasiModal={handleNotificationOpen}
                 onLogout={logout}
                 user={user}
+                unreadNotificationCount={unreadNotificationCount}
               />
               <main className="flex-grow">
                 <Routes>
@@ -116,6 +158,14 @@ function AppContent() {
       />
       <BookingHistory isOpen={bookingHistoryModal.isOpen} onClose={bookingHistoryModal.closeModal} user={user} />
       <ProfileModal isOpen={profileModal.isOpen} onClose={profileModal.closeModal} user={user} />
+      <Notifikasi 
+        isOpen={notifikasiModal.isOpen} 
+        onClose={() => {
+          notifikasiModal.closeModal();
+          setUnreadNotificationCount(0); // Reset count when closing notifications
+        }} 
+        user={user} 
+      />
     </div>
   );
 }
