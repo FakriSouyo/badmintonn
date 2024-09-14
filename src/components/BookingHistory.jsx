@@ -38,14 +38,15 @@ const BookingHistory = ({ isOpen, onClose }) => {
       
       const bookingsWithOrder = data.map((booking, index) => ({
         ...booking,
-        orderNumber: data.length - index
+        orderNumber: data.length - index,
+        payment_status: booking.payment_status || 'pending'
       }));
       
       setBookings(bookingsWithOrder);
       console.log('Fetched bookings:', bookingsWithOrder);
     } catch (error) {
       console.error('Error fetching bookings:', error);
-      toast.error('Failed to load booking history');
+      toast.error('Gagal memuat riwayat pemesanan');
     } finally {
       setLoading(false);
     }
@@ -53,16 +54,15 @@ const BookingHistory = ({ isOpen, onClose }) => {
 
   const cancelBooking = async (bookingId) => {
     try {
-      console.log('Attempting to cancel booking:', bookingId);
+      console.log('Mencoba membatalkan pemesanan:', bookingId);
 
       const { error: updateError } = await supabase
         .from('bookings')
-        .update({ status: 'cancelled' })
+        .update({ status: 'cancelled', payment_status: 'cancelled' })
         .eq('id', bookingId);
 
       if (updateError) throw updateError;
 
-      // Fetch the updated booking
       const { data: updatedBooking, error: fetchError } = await supabase
         .from('bookings')
         .select('*')
@@ -72,22 +72,36 @@ const BookingHistory = ({ isOpen, onClose }) => {
       if (fetchError) throw fetchError;
 
       if (!updatedBooking) {
-        throw new Error('Failed to fetch updated booking');
+        throw new Error('Gagal mengambil pemesanan yang diperbarui');
       }
 
-      console.log('Updated booking:', updatedBooking);
+      console.log('Pemesanan diperbarui:', updatedBooking);
 
-      // Update the local state
       setBookings(prevBookings => 
         prevBookings.map(booking => 
           booking.id === bookingId ? { ...booking, ...updatedBooking } : booking
         )
       );
       
-      toast.success('Booking cancelled successfully');
+      toast.success('Pemesanan berhasil dibatalkan');
     } catch (error) {
-      console.error('Error cancelling booking:', error);
-      toast.error(error.message || 'Failed to cancel booking');
+      console.error('Error membatalkan pemesanan:', error);
+      toast.error(error.message || 'Gagal membatalkan pemesanan');
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending':
+        return 'text-yellow-600';
+      case 'paid':
+      case 'confirmed':
+        return 'text-green-600';
+      case 'cancelled':
+      case 'failed':
+        return 'text-red-600';
+      default:
+        return 'text-gray-600';
     }
   };
 
@@ -109,15 +123,15 @@ const BookingHistory = ({ isOpen, onClose }) => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-gray-800">Booking History</h2>
+              <h2 className="text-2xl font-bold text-gray-800">Riwayat Pemesanan</h2>
               <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
                 <FiX size={24} />
               </button>
             </div>
             {loading ? (
-              <p className="text-center text-gray-600">Loading bookings...</p>
+              <p className="text-center text-gray-600">Memuat pemesanan...</p>
             ) : bookings.length === 0 ? (
-              <p className="text-center text-gray-600">No bookings found.</p>
+              <p className="text-center text-gray-600">Tidak ada pemesanan ditemukan.</p>
             ) : (
               <div className="space-y-6">
                 {bookings.map((booking) => (
@@ -128,25 +142,34 @@ const BookingHistory = ({ isOpen, onClose }) => {
                     className="border border-gray-200 rounded-lg p-4"
                   >
                     <div className="flex justify-between items-center mb-2">
-                      <span className="font-semibold">Booking #{booking.orderNumber}</span>
+                      <span className="font-semibold">Pemesanan #{booking.orderNumber}</span>
                       <span className="text-sm text-gray-500">
                         {new Date(booking.created_at).toLocaleString()}
                       </span>
                     </div>
                     <div className="mb-2">
-                      <span className="font-semibold">Court:</span> {booking.courts.name}
+                      <span className="font-semibold">Lapangan:</span> {booking.courts.name}
                     </div>
                     <div className="mb-2">
-                      <span className="font-semibold">Date:</span> {new Date(booking.booking_date).toLocaleDateString()}
+                      <span className="font-semibold">Tanggal:</span> {new Date(booking.booking_date).toLocaleDateString()}
                     </div>
                     <div className="mb-2">
-                      <span className="font-semibold">Time:</span> {booking.start_time} - {booking.end_time}
+                      <span className="font-semibold">Waktu:</span> {booking.start_time} - {booking.end_time}
                     </div>
                     <div className="mb-2">
-                      <span className="font-semibold">Status:</span> {booking.status}
+                      <span className="font-semibold">Status Pemesanan:</span> 
+                      <span className={`ml-1 ${getStatusColor(booking.status)}`}>
+                        {booking.status}
+                      </span>
                     </div>
                     <div className="mb-2">
-                      <span className="font-semibold">Total Price:</span> Rp {booking.total_price.toLocaleString()}
+                      <span className="font-semibold">Status Pembayaran:</span> 
+                      <span className={`ml-1 ${getStatusColor(booking.payment_status)}`}>
+                        {booking.payment_status}
+                      </span>
+                    </div>
+                    <div className="mb-2">
+                      <span className="font-semibold">Total Harga:</span> Rp {booking.total_price.toLocaleString()}
                     </div>
                     {booking.status === 'pending' && (
                       <Button 
@@ -154,7 +177,7 @@ const BookingHistory = ({ isOpen, onClose }) => {
                         variant="outline" 
                         className="mt-2"
                       >
-                        Cancel Booking
+                        Batalkan Pemesanan
                       </Button>
                     )}
                   </motion.div>
