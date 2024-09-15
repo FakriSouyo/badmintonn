@@ -9,12 +9,12 @@ import { FiEye, FiTrash2, FiDownload } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 
-const createNotification = async (userId, message, type) => {
+const createNotification = async (userId, bookingId, message, type) => {
   try {
-    console.log('Creating notification:', { userId, message, type });
+    console.log('Creating notification:', { userId, bookingId, message, type });
     const { data, error } = await supabase
       .from('notifications')
-      .insert({ user_id: userId, message, type });
+      .insert({ user_id: userId, booking_id: bookingId, message, type });
 
     if (error) throw error;
     console.log('Notification created successfully:', data);
@@ -57,7 +57,7 @@ export const Bookings = () => {
         .from('bookings')
         .update({ status: newStatus })
         .eq('id', id)
-        .select()
+        .select('*, users(id)')
         .single();
   
       if (error) throw error;
@@ -86,8 +86,9 @@ export const Bookings = () => {
         default:
           statusIndonesia = newStatus;
       }
-      const message = `Status pemesanan Anda telah ${statusIndonesia}.`;
-      await createNotification(data.user_id, message, 'booking');
+      const bookingCode = data.id.toString().padStart(4, '0');
+      const message = `Status Pemesanan #${bookingCode} telah ${statusIndonesia}.`;
+      await createNotification(data.users.id, data.id, message, 'booking');
   
       fetchBookings();
       toast.success(`Status pemesanan berhasil diubah menjadi ${statusIndonesia}`);

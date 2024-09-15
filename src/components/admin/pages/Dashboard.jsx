@@ -44,13 +44,17 @@ export const Dashboard = () => {
     try {
       const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
-        .select('total_price, status');
+        .select('total_price, status, payment_status');
 
       if (bookingsError) throw bookingsError;
 
-      const totalRevenue = bookings.reduce((sum, booking) => sum + booking.total_price, 0);
+      const totalRevenue = bookings
+        .filter(booking => booking.payment_status === 'paid')
+        .reduce((sum, booking) => sum + booking.total_price, 0);
       const totalBookings = bookings.length;
-      const activeBookings = bookings.filter(booking => booking.status === 'confirmed').length;
+      const activeBookings = bookings.filter(booking => 
+        booking.status === 'confirmed' && booking.payment_status === 'paid'
+      ).length;
 
       setStats({ totalRevenue, totalBookings, activeBookings });
     } catch (error) {
@@ -62,7 +66,8 @@ export const Dashboard = () => {
     try {
       const { data, error } = await supabase
         .from('bookings')
-        .select('created_at, total_price')
+        .select('created_at, total_price, payment_status')
+        .eq('payment_status', 'paid')
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -87,6 +92,7 @@ export const Dashboard = () => {
       const { data, error } = await supabase
         .from('bookings')
         .select('court_id, courts(name)')
+        .eq('payment_status', 'paid')
         .order('court_id', { ascending: true });
 
       if (error) throw error;

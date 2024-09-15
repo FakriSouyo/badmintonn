@@ -9,12 +9,12 @@ import { FiInfo, FiTrash2, FiDownload } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 
-const createNotification = async (userId, message, type) => {
+const createNotification = async (userId, bookingId, message, type) => {
   try {
-    console.log('Creating notification:', { userId, message, type });
+    console.log('Creating notification:', { userId, bookingId, message, type });
     const { data, error } = await supabase
       .from('notifications')
-      .insert({ user_id: userId, message, type });
+      .insert({ user_id: userId, booking_id: bookingId, message, type });
 
     if (error) throw error;
     console.log('Notification created successfully:', data);
@@ -79,40 +79,42 @@ export const Payments = () => {
   };
 
   const updatePaymentStatus = async (id, newStatus) => {
-    try {
-      // Perbarui status pembayaran dan status pemesanan sekaligus
-      const { data, error } = await supabase
-        .from('bookings')
-        .update({ 
-          payment_status: newStatus,
-          status: mapPaymentStatusToBookingStatus(newStatus)
-        })
-        .eq('id', id)
-        .select()
-        .single();
-  
-      if (error) throw error;
-  
-      // Buat notifikasi untuk pengguna
-      let statusIndonesia = '';
-      switch (newStatus) {
-        case 'paid':
-          statusIndonesia = 'dikonfirmasi';
-          break;
-        case 'pending':
-          statusIndonesia = 'ditunda';
-          break;
-        case 'cancelled':
-          statusIndonesia = 'dibatalkan';
-          break;
-        case 'failed':
-          statusIndonesia = 'gagal';
-          break;
-        default:
-          statusIndonesia = newStatus;
-      }
-      const message = `Pembayaran pemesanan Anda telah ${statusIndonesia}.`;
-      await createNotification(data.user_id, message, 'payment');
+  try {
+    // Perbarui status pembayaran dan status pemesanan sekaligus
+    const { data, error } = await supabase
+      .from('bookings')
+      .update({ 
+        payment_status: newStatus,
+        status: mapPaymentStatusToBookingStatus(newStatus)
+      })
+      .eq('id', id)
+      .select('*, users(id)')
+      .single();
+
+    if (error) throw error;
+
+    // Buat notifikasi untuk pengguna
+    let statusIndonesia = '';
+    switch (newStatus) {
+      case 'paid':
+        statusIndonesia = 'dikonfirmasi';
+        break;
+      case 'pending':
+        statusIndonesia = 'ditunda';
+        break;
+      case 'cancelled':
+        statusIndonesia = 'dibatalkan';
+        break;
+      case 'failed':
+        statusIndonesia = 'gagal';
+        break;
+      default:
+        statusIndonesia = newStatus;
+    }
+    const bookingCode = data.id.toString().padStart(4, '0');
+    const message = `Pembayaran untuk Pemesanan #${bookingCode} telah ${statusIndonesia}.`;
+    await createNotification(data.users.id, data.id, message, 'payment');
+
     } catch (error) {
       console.error('Error updating payment status:', error);
       toast.error('Gagal mengubah status pembayaran dan pemesanan');

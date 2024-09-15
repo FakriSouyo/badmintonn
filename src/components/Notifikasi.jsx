@@ -15,6 +15,7 @@ const Notifikasi = ({ isOpen, onClose, user }) => {
   useEffect(() => {
     if (user && isOpen) {
       fetchNotifications();
+      deleteOldNotifications();
       const subscription = subscribeToNotifications();
       return () => {
         subscription.unsubscribe();
@@ -26,14 +27,20 @@ const Notifikasi = ({ isOpen, onClose, user }) => {
     try {
       const { data, error } = await supabase
         .from('notifications')
-        .select('*')
+        .select('*, bookings(id)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(20);
   
       if (error) throw error;
   
-      setNotifications(data);
+      const notificationsWithBookingCode = data.map((notif, index) => ({
+        ...notif,
+        orderNumber: data.length - index,
+        bookingCode: notif.bookings ? `#${(data.length - index).toString().padStart(4, '0')}` : 'N/A'
+      }));
+  
+      setNotifications(notificationsWithBookingCode);
       
       // Tandai semua notifikasi sebagai telah dibaca
       if (data.length > 0) {
@@ -48,6 +55,23 @@ const Notifikasi = ({ isOpen, onClose, user }) => {
     }
   };
 
+  const deleteOldNotifications = async () => {
+    try {
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .lt('created_at', thirtyMinutesAgo)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      console.log('Old notifications deleted successfully');
+    } catch (error) {
+      console.error('Error deleting old notifications:', error);
+    }
+  };
+
   const subscribeToNotifications = () => {
     const subscription = supabase
       .channel(`public:notifications:user_id=eq.${user.id}`)
@@ -58,9 +82,22 @@ const Notifikasi = ({ isOpen, onClose, user }) => {
   };
 
   const handleNewNotification = (payload) => {
-    setNotifications(prevNotifications => [payload.new, ...prevNotifications]);
+    setNotifications(prevNotifications => {
+      const newNotification = {
+        ...payload.new,
+        orderNumber: prevNotifications.length + 1,
+        bookingCode: `#${(prevNotifications.length + 1).toString().padStart(4, '0')}`
+      };
+      return [newNotification, ...prevNotifications];
+    });
     toast.success('Anda memiliki notifikasi baru');
   };
+
+  const formatNotificationMessage = (message, bookingCode) => {
+    // Ganti UUID atau nomor pemesanan lama dengan bookingCode baru
+    return message.replace(/Pemesanan #[a-f0-9-]+|Pemesanan #\d+/gi, `Pemesanan ${bookingCode}`);
+  };
+
 
   const markAllAsRead = async (notificationIds) => {
     try {
@@ -180,7 +217,9 @@ const Notifikasi = ({ isOpen, onClose, user }) => {
                         />
                       )}
                       <div className="flex-grow">
-                        <p className="text-sm text-gray-800 mb-1">{notif.message}</p>
+                        <p className="text-sm text-gray-800 mb-1">
+                          {formatNotificationMessage(notif.message, notif.bookingCode)}
+                        </p>
                         <p className="text-xs text-gray-500">
                           {new Date(notif.created_at).toLocaleString('id-ID', {
                             year: 'numeric',
