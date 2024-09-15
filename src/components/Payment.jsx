@@ -16,13 +16,6 @@ const Payment = ({ isOpen, onClose, bookingId, totalAmount }) => {
     { id: 3, name: 'Bayar di Tempat' },
   ];
 
-  const bankAccounts = [
-    { bank: 'BCA', accountNumber: '1234567890', accountName: 'PT. Lapangan Futsal' },
-    { bank: 'Mandiri', accountNumber: '0987654321', accountName: 'PT. Lapangan Futsal' },
-  ];
-
-  const qrisImageUrl = 'https://example.com/qris-code.png'; // Ganti dengan URL gambar QRIS yang sebenarnya
-
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -123,25 +116,6 @@ const Payment = ({ isOpen, onClose, bookingId, totalAmount }) => {
                 </SelectContent>
               </Select>
             </div>
-
-            {selectedMethod === 'Transfer Bank' && (
-              <div className="mb-4">
-                <h3 className="font-semibold mb-2">Informasi Rekening:</h3>
-                {bankAccounts.map((account, index) => (
-                  <div key={index} className="mb-2">
-                    <p><strong>{account.bank}:</strong> {account.accountNumber}</p>
-                    <p>a.n. {account.accountName}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {selectedMethod === 'QRIS' && (
-              <div className="mb-4">
-                <h3 className="font-semibold mb-2">Scan QRIS:</h3>
-                <img src={qrisImageUrl} alt="QRIS Code" className="w-full h-auto" />
-              </div>
-            )}
 
             {selectedMethod && selectedMethod !== 'Bayar di Tempat' && (
               <div className="mb-4">

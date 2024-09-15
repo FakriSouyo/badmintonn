@@ -19,9 +19,9 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
   const [startTime, setStartTime] = useState(null);
   const [endTime, setEndTime] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [bookingId, setBookingId] = useState(null);
   const [totalPrice, setTotalPrice] = useState(0);
   const [currentStep, setCurrentStep] = useState('booking');
+  const [bookingData, setBookingData] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -34,7 +34,6 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
       setSelectedCourt(initialBookingData.courtId);
       setSelectedDate(parseISO(initialBookingData.date));
       setStartTime(initialBookingData.startTime);
-      // Set a default end time 1 hour after the start time
       setEndTime(format(addHours(parseISO(`2000-01-01T${initialBookingData.startTime}`), 1), 'HH:mm'));
     }
   }, [initialBookingData]);
@@ -60,38 +59,24 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
     }
   };
 
-  const handleBooking = async () => {
+  const handleBooking = () => {
     if (!selectedCourt || !selectedDate || !startTime || !endTime) {
       toast.error('Please fill in all fields');
       return;
     }
 
-    setLoading(true);
-    try {
-      const bookingDate = format(selectedDate, 'yyyy-MM-dd');
-      
-      const { data, error } = await supabase.from('bookings').insert([
-        {
-          user_id: user.id,
-          court_id: selectedCourt,
-          booking_date: bookingDate,
-          start_time: startTime,
-          end_time: endTime,
-          total_price: totalPrice,
-          status: 'pending'
-        }
-      ]).select();
+    const bookingData = {
+      user_id: user.id,
+      court_id: selectedCourt,
+      booking_date: format(selectedDate, 'yyyy-MM-dd'),
+      start_time: startTime,
+      end_time: endTime,
+      total_price: totalPrice,
+      status: 'pending'
+    };
 
-      if (error) throw error;
-
-      setBookingId(data[0].id);
-      setCurrentStep('payment');
-    } catch (error) {
-      console.error('Booking error:', error);
-      toast.error('Failed to create booking');
-    } finally {
-      setLoading(false);
-    }
+    setBookingData(bookingData);
+    setCurrentStep('payment');
   };
 
   const calculateDuration = (start, end) => {
@@ -115,6 +100,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
     setSelectedDate(null);
     setStartTime(null);
     setEndTime(null);
+    setBookingData(null);
     onClose();
   };
 
@@ -227,7 +213,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
                   className="w-full"
                   disabled={loading || !selectedCourt || !selectedDate || !startTime || !endTime}
                 >
-                  {loading ? 'Booking...' : 'Book Now'}
+                  {loading ? 'Processing...' : 'Proceed to Payment'}
                 </Button>
               </div>
             </motion.div>
@@ -237,7 +223,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
             key="payment-modal"
             isOpen={true}
             onClose={handleClose}
-            bookingId={bookingId}
+            bookingData={bookingData}
             totalAmount={totalPrice}
           />
         )
