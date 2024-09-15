@@ -6,9 +6,10 @@ import toast from 'react-hot-toast';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
-const Payment = ({ isOpen, onClose, bookingId, totalAmount }) => {
+const Payment = ({ isOpen, onClose, bookingData, totalAmount }) => {
   const [selectedMethod, setSelectedMethod] = useState('');
   const [proofOfPayment, setProofOfPayment] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const paymentMethods = [
     { id: 1, name: 'Transfer Bank' },
@@ -20,7 +21,7 @@ const Payment = ({ isOpen, onClose, bookingId, totalAmount }) => {
     const file = event.target.files[0];
     if (file) {
       try {
-        const fileName = `${bookingId}_${Date.now()}_${file.name}`;
+        const fileName = `${Date.now()}_${file.name}`;
         const { error: uploadError } = await supabase.storage
           .from('buktibyr')
           .upload(fileName, file);
@@ -53,23 +54,32 @@ const Payment = ({ isOpen, onClose, bookingId, totalAmount }) => {
       return;
     }
 
+    setLoading(true);
     try {
-      const { error: updateError } = await supabase
+      if (!bookingData || !bookingData.id) {
+        throw new Error('Data pemesanan tidak valid');
+      }
+
+      const { data, error } = await supabase
         .from('bookings')
         .update({
           payment_method: selectedMethod,
           payment_status: selectedMethod === 'Bayar di Tempat' ? 'pending' : 'paid',
-          proof_of_payment_url: proofOfPayment
+          proof_of_payment_url: proofOfPayment,
+          status: selectedMethod === 'Bayar di Tempat' ? 'pending' : 'confirmed'
         })
-        .eq('id', bookingId);
+        .eq('id', bookingData.id)
+        .select();
 
-      if (updateError) throw updateError;
+      if (error) throw error;
 
       toast.success('Pembayaran berhasil diproses');
       onClose();
     } catch (error) {
       console.error('Kesalahan pembayaran:', error);
-      toast.error(`Gagal memproses pembayaran: ${error.message || 'Kesalahan tidak diketahui'}`);
+      toast.error(`Gagal memproses pembayaran: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -147,12 +157,12 @@ const Payment = ({ isOpen, onClose, bookingId, totalAmount }) => {
               </div>
             )}
 
-            <Button
+<Button
               onClick={handlePayment}
               className="w-full"
-              disabled={selectedMethod !== 'Bayar di Tempat' && !proofOfPayment}
+              disabled={loading || (selectedMethod !== 'Bayar di Tempat' && !proofOfPayment)}
             >
-              Bayar Sekarang
+              {loading ? 'Memproses...' : 'Bayar Sekarang'}
             </Button>
           </motion.div>
         </motion.div>

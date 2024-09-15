@@ -5,17 +5,43 @@ import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
+import Refund from './Refund';
+import { differenceInSeconds, parseISO, format } from 'date-fns';
 
 const BookingHistory = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
 
   useEffect(() => {
     if (user && isOpen) {
       fetchBookings();
     }
   }, [user, isOpen]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setBookings(prevBookings => 
+        prevBookings.map(booking => ({
+          ...booking,
+          timeLeft: calculateTimeLeft(booking.created_at)
+        }))
+      );
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const calculateTimeLeft = (createdAt) => {
+    const diff = differenceInSeconds(new Date(), parseISO(createdAt));
+    const secondsLeft = 1800 - diff;
+    if (secondsLeft <= 0) return '00:00';
+    const minutes = Math.floor(secondsLeft / 60);
+    const seconds = secondsLeft % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
 
   const fetchBookings = async () => {
     if (!user) return;
@@ -26,10 +52,8 @@ const BookingHistory = ({ isOpen, onClose }) => {
         .from('bookings')
         .select(`
           *,
-          courts (
-            name,
-            hourly_rate
-          )
+          courts (name, hourly_rate),
+          refunds (id, status)
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -39,11 +63,12 @@ const BookingHistory = ({ isOpen, onClose }) => {
       const bookingsWithOrder = data.map((booking, index) => ({
         ...booking,
         orderNumber: data.length - index,
-        payment_status: booking.payment_status || 'pending'
+        payment_status: booking.payment_status || 'pending',
+        timeLeft: calculateTimeLeft(booking.created_at),
+        refund_status: booking.refunds.length > 0 ? booking.refunds[0].status : null
       }));
       
       setBookings(bookingsWithOrder);
-      console.log('Fetched bookings:', bookingsWithOrder);
     } catch (error) {
       console.error('Error fetching bookings:', error);
       toast.error('Gagal memuat riwayat pemesanan');
@@ -54,8 +79,6 @@ const BookingHistory = ({ isOpen, onClose }) => {
 
   const cancelBooking = async (bookingId) => {
     try {
-      console.log('Mencoba membatalkan pemesanan:', bookingId);
-
       const { error: updateError } = await supabase
         .from('bookings')
         .update({ status: 'cancelled', payment_status: 'cancelled' })
@@ -63,23 +86,11 @@ const BookingHistory = ({ isOpen, onClose }) => {
 
       if (updateError) throw updateError;
 
-      const { data: updatedBooking, error: fetchError } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('id', bookingId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      if (!updatedBooking) {
-        throw new Error('Gagal mengambil pemesanan yang diperbarui');
-      }
-
-      console.log('Pemesanan diperbarui:', updatedBooking);
-
       setBookings(prevBookings => 
         prevBookings.map(booking => 
-          booking.id === bookingId ? { ...booking, ...updatedBooking } : booking
+          booking.id === bookingId 
+            ? { ...booking, status: 'cancelled', payment_status: 'cancelled' } 
+            : booking
         )
       );
       
@@ -90,18 +101,27 @@ const BookingHistory = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleRefundClick = (booking) => {
+    setSelectedBooking(booking);
+    setShowRefundModal(true);
+  };
+
+  const handleRefundSubmitted = (refundData) => {
+    setBookings(bookings.map(booking => 
+      booking.id === refundData.booking_id 
+        ? { ...booking, refund_status: 'pending' } 
+        : booking
+    ));
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
-      case 'pending':
-        return 'text-yellow-600';
+      case 'pending': return 'text-yellow-600';
       case 'paid':
-      case 'confirmed':
-        return 'text-green-600';
+      case 'confirmed': return 'text-green-600';
       case 'cancelled':
-      case 'failed':
-        return 'text-red-600';
-      default:
-        return 'text-gray-600';
+      case 'failed': return 'text-red-600';
+      default: return 'text-gray-600';
     }
   };
 
@@ -109,6 +129,7 @@ const BookingHistory = ({ isOpen, onClose }) => {
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          key="booking-history-modal"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -119,76 +140,121 @@ const BookingHistory = ({ isOpen, onClose }) => {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white p-6 rounded-lg shadow-xl w-full max-w-3xl max-h-[80vh] overflow-y-auto"
+            className="bg-white p-8 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-gray-800">Riwayat Pemesanan</h2>
-              <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-                <FiX size={24} />
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-800">Riwayat Pemesanan</h2>
+              <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
+                <FiX size={28} />
               </button>
             </div>
+            
             {loading ? (
-              <p className="text-center text-gray-600">Memuat pemesanan...</p>
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gray-900"></div>
+              </div>
             ) : bookings.length === 0 ? (
-              <p className="text-center text-gray-600">Tidak ada pemesanan ditemukan.</p>
+              <p className="text-center text-gray-600 text-lg">Tidak ada pemesanan ditemukan.</p>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-8">
                 {bookings.map((booking) => (
-                  <motion.div
+                  <BookingCard 
                     key={booking.id}
-                    initial={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="border border-gray-200 rounded-lg p-4"
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-semibold">Pemesanan #{booking.orderNumber}</span>
-                      <span className="text-sm text-gray-500">
-                        {new Date(booking.created_at).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="mb-2">
-                      <span className="font-semibold">Lapangan:</span> {booking.courts.name}
-                    </div>
-                    <div className="mb-2">
-                      <span className="font-semibold">Tanggal:</span> {new Date(booking.booking_date).toLocaleDateString()}
-                    </div>
-                    <div className="mb-2">
-                      <span className="font-semibold">Waktu:</span> {booking.start_time} - {booking.end_time}
-                    </div>
-                    <div className="mb-2">
-                      <span className="font-semibold">Status Pemesanan:</span> 
-                      <span className={`ml-1 ${getStatusColor(booking.status)}`}>
-                        {booking.status}
-                      </span>
-                    </div>
-                    <div className="mb-2">
-                      <span className="font-semibold">Status Pembayaran:</span> 
-                      <span className={`ml-1 ${getStatusColor(booking.payment_status)}`}>
-                        {booking.payment_status}
-                      </span>
-                    </div>
-                    <div className="mb-2">
-                      <span className="font-semibold">Total Harga:</span> Rp {booking.total_price.toLocaleString()}
-                    </div>
-                    {booking.status === 'pending' && (
-                      <Button 
-                        onClick={() => cancelBooking(booking.id)} 
-                        variant="outline" 
-                        className="mt-2"
-                      >
-                        Batalkan Pemesanan
-                      </Button>
-                    )}
-                  </motion.div>
+                    booking={booking}
+                    onCancel={cancelBooking}
+                    onRefundClick={handleRefundClick}
+                    getStatusColor={getStatusColor}
+                  />
                 ))}
               </div>
             )}
           </motion.div>
         </motion.div>
       )}
+      
+      {showRefundModal && (
+        <Refund
+          key="refund-modal"
+          booking={selectedBooking}
+          onClose={() => setShowRefundModal(false)}
+          onRefundSubmitted={handleRefundSubmitted}
+        />
+      )}
     </AnimatePresence>
   );
 };
+
+const BookingCard = ({ booking, onCancel, onRefundClick, getStatusColor }) => (
+  <motion.div
+    initial={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="bg-white border border-gray-200 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow"
+  >
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <BookingDetails booking={booking} />
+      <BookingStatus booking={booking} getStatusColor={getStatusColor} />
+    </div>
+    <BookingActions 
+      booking={booking} 
+      onCancel={onCancel} 
+      onRefundClick={onRefundClick} 
+    />
+  </motion.div>
+);
+
+const BookingDetails = ({ booking }) => (
+  <div className="space-y-2">
+    <h3 className="font-semibold text-xl mb-3">Pemesanan #{booking.orderNumber}</h3>
+    <p className="text-sm text-gray-500">{format(new Date(booking.created_at), 'dd MMMM yyyy, HH:mm')}</p>
+    <p><span className="font-medium">Lapangan:</span> {booking.courts.name}</p>
+    <p><span className="font-medium">Tanggal:</span> {format(new Date(booking.booking_date), 'dd MMMM yyyy')}</p>
+    <p><span className="font-medium">Waktu:</span> {booking.start_time} - {booking.end_time}</p>
+  </div>
+);
+
+const BookingStatus = ({ booking, getStatusColor }) => (
+  <div className="space-y-2">
+    <StatusItem label="Status Pemesanan" value={booking.status} color={getStatusColor(booking.status)} />
+    <StatusItem label="Status Pembayaran" value={booking.payment_status} color={getStatusColor(booking.payment_status)} />
+    <p><span className="font-medium">Total Harga:</span> Rp {booking.total_price.toLocaleString()}</p>
+    {booking.refund_status && (
+      <StatusItem label="Status Refund" value={booking.refund_status} color={getStatusColor(booking.refund_status)} />
+    )}
+  </div>
+);
+
+const StatusItem = ({ label, value, color }) => (
+  <p>
+    <span className="font-medium">{label}:</span> 
+    <span className={`ml-1 ${color} font-semibold`}>{value}</span>
+  </p>
+);
+
+const BookingActions = ({ booking, onCancel, onRefundClick }) => (
+  <div className="mt-6 flex justify-between items-center">
+    {booking.status === 'pending' && booking.timeLeft !== '00:00' && (
+      <>
+        <Button 
+          onClick={() => onCancel(booking.id)} 
+          variant="outline" 
+          className="bg-red-50 text-red-600 hover:bg-red-100 border-red-200"
+        >
+          Batalkan Pemesanan
+        </Button>
+        <span className="text-sm font-medium text-gray-500">Sisa Waktu: {booking.timeLeft}</span>
+      </>
+    )}
+    {booking.status === 'cancelled' && !booking.refund_status && (
+      <Button 
+        onClick={() => onRefundClick(booking)} 
+        disabled={booking.refund_status !== null}
+        className="bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200"
+      >
+        {booking.refund_status ? 'Refund Diajukan' : 'Ajukan Refund'}
+      </Button>
+    )}
+  </div>
+);
 
 export default BookingHistory;

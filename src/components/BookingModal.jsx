@@ -59,24 +59,38 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
     }
   };
 
-  const handleBooking = () => {
+  const handleBooking = async () => {
     if (!selectedCourt || !selectedDate || !startTime || !endTime) {
       toast.error('Please fill in all fields');
       return;
     }
 
-    const bookingData = {
-      user_id: user.id,
-      court_id: selectedCourt,
-      booking_date: format(selectedDate, 'yyyy-MM-dd'),
-      start_time: startTime,
-      end_time: endTime,
-      total_price: totalPrice,
-      status: 'pending'
-    };
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert({
+          user_id: user.id,
+          court_id: selectedCourt,
+          booking_date: format(selectedDate, 'yyyy-MM-dd'),
+          start_time: startTime,
+          end_time: endTime,
+          total_price: totalPrice,
+          status: 'pending'
+        })
+        .select()
+        .single();
 
-    setBookingData(bookingData);
-    setCurrentStep('payment');
+      if (error) throw error;
+
+      setBookingData(data);
+      setCurrentStep('payment');
+    } catch (error) {
+      console.error('Booking error:', error);
+      toast.error('Failed to create booking');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const calculateDuration = (start, end) => {

@@ -5,9 +5,10 @@ import { Courts } from './pages/Courts';
 import { Bookings } from './pages/Bookings';
 import { Payments } from './pages/Payments';
 import { AdminSchedule } from './pages/AdminSchedule';
+import { RefundPanel } from './pages/RefundPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar, SidebarBody, SidebarLink, SidebarHeader, SidebarProvider } from '@/components/ui/sidebar';
-import { FiHome, FiCalendar, FiBookOpen, FiDollarSign, FiLogOut } from 'react-icons/fi';
+import { FiHome, FiCalendar, FiBookOpen, FiDollarSign, FiLogOut, FiRefreshCcw } from 'react-icons/fi';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
@@ -34,6 +35,7 @@ const AdminDashboard = () => {
     { label: 'Bookings', icon: <FiBookOpen />, href: '/admin/bookings' },
     { label: 'Payments', icon: <FiDollarSign />, href: '/admin/payments' },
     { label: 'Schedule', icon: <FiCalendar />, href: '/admin/schedule' },
+    { label: 'Refunds', icon: <FiRefreshCcw />, href: '/admin/refunds' },
   ];
 
   const handleLogout = () => {
@@ -83,6 +85,7 @@ const AdminDashboard = () => {
                 <Route path="/bookings" element={<Bookings />} />
                 <Route path="/payments" element={<Payments />} />
                 <Route path="/schedule" element={<AdminSchedule />} />
+                <Route path="/refunds" element={<RefundPanel />} />
                 <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
               </Routes>
             </div>
