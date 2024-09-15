@@ -12,12 +12,12 @@ const ScheduleModal = ({ court, days, user, isSlotBooked, handleSlotClick }) => 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button className="w-full sm:w-auto">View Schedule</Button>
+        <Button className="w-full sm:w-auto">Lihat Jadwal</Button>
       </DialogTrigger>
       <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[90vw] h-[80vh] max-h-[80vh] overflow-auto">
         <DialogHeader>
-          <DialogTitle>Schedule for Court {court.name}</DialogTitle>
-          <DialogDescription>Select an available slot to book</DialogDescription>
+          <DialogTitle>Jadwal Lapangan {court.name}</DialogTitle>
+          <DialogDescription>Pilih slot yang tersedia untuk memesan</DialogDescription>
         </DialogHeader>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse bg-white shadow-lg rounded-lg text-sm sm:text-base">
@@ -54,7 +54,7 @@ const ScheduleModal = ({ court, days, user, isSlotBooked, handleSlotClick }) => 
                             onClick={() => !isBooked && handleSlotClick(court.id, day, time)}
                             disabled={isBooked}
                           >
-                            {isBooked ? 'Booked' : 'Available'}
+                            {isBooked ? 'Dipesan' : 'Tersedia'}
                           </Button>
                         </DialogClose>
                       </td>

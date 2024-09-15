@@ -41,13 +41,18 @@ export const Bookings = () => {
         courts (name),
         users (email)
       `)
-      .eq('payment_status', 'paid')
       .order('created_at', { ascending: false });
     if (error) {
       console.error('Error fetching bookings:', error);
       toast.error('Gagal mengambil data pemesanan');
     } else {
-      setBookings(data);
+      // Set default status to 'pending' if not set
+      const updatedData = data.map(booking => ({
+        ...booking,
+        status: booking.status || 'pending',
+        payment_status: booking.payment_status || 'pending'
+      }));
+      setBookings(updatedData);
     }
   };
 
@@ -57,15 +62,16 @@ export const Bookings = () => {
         .from('bookings')
         .update({ status: newStatus })
         .eq('id', id)
-        .select('*, users(id)')
+        .select('*, users(id), courts(name)')
         .single();
   
       if (error) throw error;
   
       if (newStatus === 'confirmed') {
-        await updateScheduleToBooked(data);
-      } else if (newStatus === 'cancelled' || newStatus === 'finished') {
-        await updateScheduleToAvailable(data);
+        await updateAdminAndUserSchedule(data, newStatus);
+      } else {
+        // Untuk status 'pending', 'cancelled', 'finished', atau status lainnya
+        await updateAdminAndUserSchedule(data, newStatus);
       }
   
       // Buat notifikasi untuk pengguna
@@ -98,13 +104,14 @@ export const Bookings = () => {
     }
   };
 
-  const updateScheduleToBooked = async (booking) => {
+  const updateAdminAndUserSchedule = async (booking, newStatus) => {
     try {
       const startTime = parseISO(`${booking.booking_date}T${booking.start_time}`);
       const endTime = parseISO(`${booking.booking_date}T${booking.end_time}`);
       let currentTime = startTime;
 
       while (currentTime < endTime) {
+        const scheduleStatus = mapBookingStatusToScheduleStatus(newStatus);
         const { error } = await supabase
           .from('schedules')
           .upsert({
@@ -112,8 +119,8 @@ export const Bookings = () => {
             date: format(currentTime, 'yyyy-MM-dd'),
             start_time: format(currentTime, 'HH:mm'),
             end_time: format(addHours(currentTime, 1), 'HH:mm'),
-            status: 'booked',
-            user_id: booking.user_id
+            status: scheduleStatus,
+            user_id: newStatus === 'confirmed' ? booking.user_id : null
           }, { onConflict: ['court_id', 'date', 'start_time'] });
 
         if (error) throw error;
@@ -121,43 +128,24 @@ export const Bookings = () => {
         currentTime = addHours(currentTime, 1);
       }
 
-      console.log('Jadwal berhasil diperbarui menjadi dipesan');
+      console.log('Jadwal admin dan pengguna berhasil diperbarui');
     } catch (error) {
-      console.error('Error updating schedule to booked:', error);
-      toast.error('Gagal memperbarui jadwal menjadi dipesan');
+      console.error('Error updating admin and user schedule:', error);
+      toast.error('Gagal memperbarui jadwal admin dan pengguna');
     }
   };
 
-  const updateScheduleToAvailable = async (booking) => {
-    try {
-      const startTime = parseISO(`${booking.booking_date}T${booking.start_time}`);
-      const endTime = parseISO(`${booking.booking_date}T${booking.end_time}`);
-      let currentTime = startTime;
-
-      while (currentTime < endTime) {
-        const { error } = await supabase
-          .from('schedules')
-          .upsert({
-            court_id: booking.court_id,
-            date: format(currentTime, 'yyyy-MM-dd'),
-            start_time: format(currentTime, 'HH:mm'),
-            end_time: format(addHours(currentTime, 1), 'HH:mm'),
-            status: 'available',
-            user_id: null
-          }, { onConflict: ['court_id', 'date', 'start_time'] });
-
-        if (error) throw error;
-
-        currentTime = addHours(currentTime, 1);
-      }
-
-      console.log('Jadwal berhasil diperbarui menjadi tersedia');
-    } catch (error) {
-      console.error('Error updating schedule to available:', error);
-      toast.error('Gagal memperbarui jadwal menjadi tersedia');
+  const mapBookingStatusToScheduleStatus = (bookingStatus) => {
+    switch (bookingStatus) {
+      case 'confirmed':
+        return 'booked';
+      case 'cancelled':
+      case 'finished':
+        return 'available';
+      default:
+        return 'pending';
     }
   };
-
 
   const deleteBooking = async (id) => {
     try {
@@ -170,7 +158,8 @@ export const Bookings = () => {
 
       if (error) throw error;
 
-      await updateScheduleToAvailable(data);
+      // Ubah jadwal menjadi tersedia setelah penghapusan
+      await updateAdminAndUserSchedule(data, 'available');
       fetchBookings();
       toast.success('Pemesanan berhasil dihapus');
     } catch (error) {

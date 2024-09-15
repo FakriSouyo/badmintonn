@@ -80,12 +80,11 @@ export const Payments = () => {
 
   const updatePaymentStatus = async (id, newStatus) => {
   try {
-    // Perbarui status pembayaran dan status pemesanan sekaligus
+    // Perbarui status pembayaran saja
     const { data, error } = await supabase
       .from('bookings')
       .update({ 
-        payment_status: newStatus,
-        status: mapPaymentStatusToBookingStatus(newStatus)
+        payment_status: newStatus
       })
       .eq('id', id)
       .select('*, users(id)')
@@ -115,9 +114,11 @@ export const Payments = () => {
     const message = `Pembayaran untuk Pemesanan #${bookingCode} telah ${statusIndonesia}.`;
     await createNotification(data.users.id, data.id, message, 'payment');
 
+    fetchPayments(); // Refresh daftar pembayaran
+    toast.success(`Status pembayaran berhasil diubah menjadi ${newStatus}`);
     } catch (error) {
       console.error('Error updating payment status:', error);
-      toast.error('Gagal mengubah status pembayaran dan pemesanan');
+      toast.error('Gagal mengubah status pembayaran');
     }
   };
 

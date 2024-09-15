@@ -41,7 +41,7 @@ const Login = ({ onLogin, onSwitchToSignup }) => {
               value={formData.email}
               onChange={handleChange}
               className="pl-10"
-              placeholder="Enter your email"
+              placeholder="Masukkan email"
               required
             />
           </div>
@@ -59,7 +59,7 @@ const Login = ({ onLogin, onSwitchToSignup }) => {
               value={formData.password}
               onChange={handleChange}
               className="pl-10"
-              placeholder="Enter your password"
+              placeholder="Masukkan password"
               required
             />
           </div>

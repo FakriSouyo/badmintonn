@@ -4,7 +4,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Courts } from './pages/Courts';
 import { Bookings } from './pages/Bookings';
 import { Payments } from './pages/Payments';
-import { AdminSchedule } from './pages/AdminSchedule';
+import AdminSchedule from './pages/AdminSchedule';
 import { RefundPanel } from './pages/RefundPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar, SidebarBody, SidebarLink, SidebarHeader, SidebarProvider } from '@/components/ui/sidebar';

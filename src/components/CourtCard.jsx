@@ -24,7 +24,7 @@ const CourtCard = ({
         <CardTitle>{court.name}</CardTitle>
       </CardHeader>
       <CardContent>
-        <img src={imageUrl} alt={`Court ${court.name}`} className="w-full h-48 object-cover rounded-md mb-4" />
+        <img src={imageUrl} alt={`Lapangan${court.name}`} className="w-full h-48 object-cover rounded-md mb-4" />
         <p className="text-lg font-semibold">Harga: Rp {court.hourly_rate.toLocaleString('id-ID')}/jam</p>
         <p className="mt-2 text-sm">{court.description}</p>
       </CardContent>

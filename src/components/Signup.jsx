@@ -31,7 +31,7 @@ const Signup = ({ onSignup, onSwitchToLogin }) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-            Name
+            Nama
           </label>
           <div className="relative">
             <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -42,7 +42,7 @@ const Signup = ({ onSignup, onSwitchToLogin }) => {
               value={formData.name}
               onChange={handleChange}
               className="pl-10"
-              placeholder="Enter your name"
+              placeholder="Masukkan nama"
               required
             />
           </div>
@@ -60,7 +60,7 @@ const Signup = ({ onSignup, onSwitchToLogin }) => {
               value={formData.email}
               onChange={handleChange}
               className="pl-10"
-              placeholder="Enter your email"
+              placeholder="Masukkan email"
               required
             />
           </div>
@@ -78,14 +78,14 @@ const Signup = ({ onSignup, onSwitchToLogin }) => {
               value={formData.password}
               onChange={handleChange}
               className="pl-10"
-              placeholder="Enter your password"
+              placeholder="Masukkan password"
               required
             />
           </div>
         </div>
         <div>
           <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
-            Phone Number
+            Nomor Telepon
           </label>
           <div className="relative">
             <FiPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -96,7 +96,7 @@ const Signup = ({ onSignup, onSwitchToLogin }) => {
               value={formData.phoneNumber}
               onChange={handleChange}
               className="pl-10"
-              placeholder="Enter your phone number"
+              placeholder="Masukkan nomor telepon"
               required
             />
           </div>
@@ -104,7 +104,7 @@ const Signup = ({ onSignup, onSwitchToLogin }) => {
         <Button type="submit" className="w-full">Sign Up</Button>
       </form>
       <p className="mt-4 text-sm text-center text-gray-600">
-        Already have an account?{' '}
+        Sudah punya akun?{' '}
         <button onClick={onSwitchToLogin} className="text-blue-600 hover:underline">
           Log in
         </button>

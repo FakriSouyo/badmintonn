@@ -146,7 +146,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Select Court
+                    Pilih Lapangan
                   </label>
                   <Select onValueChange={setSelectedCourt} value={selectedCourt}>
                     <SelectTrigger>
@@ -163,7 +163,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Select Date
+                      Pilih Tanggal
                   </label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -185,7 +185,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Start Time
+                    Mulai Waktu
                   </label>
                   <Select onValueChange={setStartTime} value={startTime}>
                     <SelectTrigger>
@@ -202,7 +202,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    End Time
+                    Selesai Waktu
                   </label>
                   <Select onValueChange={setEndTime} value={endTime}>
                     <SelectTrigger>
@@ -219,7 +219,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
                 </div>
                 {selectedCourt && selectedDate && startTime && endTime && (
                   <div className="text-right text-sm text-gray-600">
-                    Total Price: Rp {formatPrice(totalPrice)}
+                    Total Harga: Rp {formatPrice(totalPrice)}
                   </div>
                 )}
                 <Button
@@ -227,7 +227,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
                   className="w-full"
                   disabled={loading || !selectedCourt || !selectedDate || !startTime || !endTime}
                 >
-                  {loading ? 'Processing...' : 'Proceed to Payment'}
+                    {loading ? 'Memproses...' : 'Lanjutkan ke Pembayaran'}
                 </Button>
               </div>
             </motion.div>

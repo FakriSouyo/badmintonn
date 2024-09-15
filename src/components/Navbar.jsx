@@ -103,9 +103,9 @@ const Navbar = ({
 
   return (
     <header className="px-4 lg:px-6 h-16 flex items-center fixed top-0 w-full bg-white bg-opacity-40 backdrop-blur-md z-50">
-      <RouterLink to="/" className="flex items-center justify-center cursor-pointer">
-        <span className="ml-2 text-lg font-semibold">Badminton Booking</span>
-      </RouterLink>
+      <NavLink to="home" className="flex items-center justify-center cursor-pointer">
+        <span className="ml-2 text-lg font-semibold">Gor Nandy</span>
+      </NavLink>
       <nav className="ml-auto flex items-center gap-4 sm:gap-6">
         <div className="hidden md:flex items-center gap-4 sm:gap-6">
           <NavLink to="home">Beranda</NavLink>
@@ -115,17 +115,17 @@ const Navbar = ({
         </div>
         {user ? (
           <>
-            <div className="relative" ref={dropdownRef}>
+            <div className="relative " ref={dropdownRef}>
               <Button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 variant="outline"
                 className="flex items-center space-x-2"
               >
                 <FiUser className="mr-2" />
-                <span className="hidden md:inline">{fullName}</span>
+                <span className="hidden md:inline ">{fullName}</span>
               </Button>
               {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 ">
                   <button
                     className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     onClick={() => {
@@ -182,7 +182,7 @@ const Navbar = ({
             )}
           </>
         ) : (
-          <Button onClick={() => openAuthModal('login')} variant="outline" className="text-sm font-medium">
+          <Button onClick={() => openAuthModal('login')} variant="outline" className="text-sm font-medium bg-opacity-90 bg-transparent hover:bg-opacity-100 ">
             Masuk
           </Button>
         )}
