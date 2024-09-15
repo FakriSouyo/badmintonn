@@ -41,18 +41,13 @@ export const Bookings = () => {
         courts (name),
         users (email)
       `)
+      .eq('payment_status', 'paid') // Hanya ambil pemesanan dengan status pembayaran 'paid'
       .order('created_at', { ascending: false });
     if (error) {
       console.error('Error fetching bookings:', error);
       toast.error('Gagal mengambil data pemesanan');
     } else {
-      // Set default status to 'pending' if not set
-      const updatedData = data.map(booking => ({
-        ...booking,
-        status: booking.status || 'pending',
-        payment_status: booking.payment_status || 'pending'
-      }));
-      setBookings(updatedData);
+      setBookings(data || []);
     }
   };
 
@@ -191,123 +186,127 @@ export const Bookings = () => {
           <FiDownload /> Download Excel
         </Button>
       </div>
-      <div className="overflow-x-auto">
-        <Table className="w-full">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tanggal</TableHead>
-              <TableHead>Waktu</TableHead>
-              <TableHead>Lapangan</TableHead>
-              <TableHead>Pengguna</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {bookings.map((booking) => (
-              <TableRow key={booking.id}>
-                <TableCell>
-                  <div className="flex flex-col sm:flex-row">
-                    <span className="font-medium sm:hidden">Tanggal:</span>
-                    {format(new Date(booking.booking_date), 'dd/MM/yyyy')}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col sm:flex-row">
-                    <span className="font-medium sm:hidden">Waktu:</span>
-                    {`${booking.start_time} - ${booking.end_time}`}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col sm:flex-row">
-                    <span className="font-medium sm:hidden">Lapangan:</span>
-                    {booking.courts.name}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col sm:flex-row">
-                    <span className="font-medium sm:hidden">Pengguna:</span>
-                    {booking.users.email}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col sm:flex-row items-center">
-                    <span className="font-medium sm:hidden mr-2">Status:</span>
-                    <Select
-                      onValueChange={(value) => updateBookingStatus(booking.id, value)}
-                      defaultValue={booking.status}
-                    >
-                      <SelectTrigger className="w-full sm:w-[180px]">
-                        <SelectValue placeholder="Status Pemesanan" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                        <SelectItem value="finished">Finished</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedBooking(booking)}
-                          title="Detail"
-                          className="w-full sm:w-auto flex items-center justify-center gap-2"
-                        >
-                          <FiEye className="sm:hidden" /> <span className="hidden sm:inline">Detail</span>
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="w-full max-w-md">
-                        <DialogHeader>
-                          <DialogTitle>Detail Pemesanan</DialogTitle>
-                        </DialogHeader>
-                        {selectedBooking && (
-                          <div className="space-y-2">
-                            <p><strong>Pengguna:</strong> {selectedBooking.users.email}</p>
-                            <p><strong>Lapangan:</strong> {selectedBooking.courts.name}</p>
-                            <p><strong>Tanggal:</strong> {format(new Date(selectedBooking.booking_date), 'dd/MM/yyyy')}</p>
-                            <p><strong>Waktu:</strong> {`${selectedBooking.start_time} - ${selectedBooking.end_time}`}</p>
-                            <p><strong>Status:</strong> {selectedBooking.status}</p>
-                            <p><strong>Total Harga:</strong> Rp {selectedBooking.total_price.toLocaleString()}</p>
-                            {selectedBooking.proof_of_payment_url && (
-                              <div>
-                                <p><strong>Bukti Pembayaran:</strong></p>
-                                <img 
-                                  src={selectedBooking.proof_of_payment_url} 
-                                  alt="Bukti Pembayaran" 
-                                  className="w-full h-auto mt-2 rounded-lg shadow-lg"
-                                />
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </DialogContent>
-                    </Dialog>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        setBookingToDelete(booking);
-                        setIsDeleteDialogOpen(true);
-                      }}
-                      title="Hapus"
-                      className="w-full sm:w-auto flex items-center justify-center gap-2"
-                    >
-                      <FiTrash2 className="sm:hidden" /> <span className="hidden sm:inline">Hapus</span>
-                    </Button>
-                  </div>
-                </TableCell>
+      {bookings.length > 0 ? (
+        <div className="overflow-x-auto">
+          <Table className="w-full">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tanggal</TableHead>
+                <TableHead>Waktu</TableHead>
+                <TableHead>Lapangan</TableHead>
+                <TableHead>Pengguna</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Aksi</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {bookings.map((booking) => (
+                <TableRow key={booking.id}>
+                  <TableCell>
+                    <div className="flex flex-col sm:flex-row">
+                      <span className="font-medium sm:hidden">Tanggal:</span>
+                      {format(new Date(booking.booking_date), 'dd/MM/yyyy')}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col sm:flex-row">
+                      <span className="font-medium sm:hidden">Waktu:</span>
+                      {`${booking.start_time} - ${booking.end_time}`}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col sm:flex-row">
+                      <span className="font-medium sm:hidden">Lapangan:</span>
+                      {booking.courts.name}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col sm:flex-row">
+                      <span className="font-medium sm:hidden">Pengguna:</span>
+                      {booking.users.email}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col sm:flex-row items-center">
+                      <span className="font-medium sm:hidden mr-2">Status:</span>
+                      <Select
+                        onValueChange={(value) => updateBookingStatus(booking.id, value)}
+                        defaultValue={booking.status}
+                      >
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                          <SelectValue placeholder="Status Pemesanan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="confirmed">Confirmed</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <SelectItem value="finished">Finished</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedBooking(booking)}
+                            title="Detail"
+                            className="w-full sm:w-auto flex items-center justify-center gap-2"
+                          >
+                            <FiEye className="sm:hidden" /> <span className="hidden sm:inline">Detail</span>
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="w-full max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Detail Pemesanan</DialogTitle>
+                          </DialogHeader>
+                          {selectedBooking && (
+                            <div className="space-y-2">
+                              <p><strong>Pengguna:</strong> {selectedBooking.users.email}</p>
+                              <p><strong>Lapangan:</strong> {selectedBooking.courts.name}</p>
+                              <p><strong>Tanggal:</strong> {format(new Date(selectedBooking.booking_date), 'dd/MM/yyyy')}</p>
+                              <p><strong>Waktu:</strong> {`${selectedBooking.start_time} - ${selectedBooking.end_time}`}</p>
+                              <p><strong>Status:</strong> {selectedBooking.status}</p>
+                              <p><strong>Total Harga:</strong> Rp {selectedBooking.total_price.toLocaleString()}</p>
+                              {selectedBooking.proof_of_payment_url && (
+                                <div>
+                                  <p><strong>Bukti Pembayaran:</strong></p>
+                                  <img 
+                                    src={selectedBooking.proof_of_payment_url} 
+                                    alt="Bukti Pembayaran" 
+                                    className="w-full h-auto mt-2 rounded-lg shadow-lg"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </DialogContent>
+                      </Dialog>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          setBookingToDelete(booking);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                        title="Hapus"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2"
+                      >
+                        <FiTrash2 className="sm:hidden" /> <span className="hidden sm:inline">Hapus</span>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <p className="text-center text-gray-500 my-4">Tidak ada pemesanan yang sudah dibayar.</p>
+      )}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

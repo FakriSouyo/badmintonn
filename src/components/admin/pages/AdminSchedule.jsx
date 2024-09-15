@@ -3,9 +3,8 @@ import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { supabase } from '@/services/supabaseClient';
 import toast from 'react-hot-toast';
-import { useAuth } from '../../../contexts/AuthContext'; // Sesuaikan path impor
+import { useAuth } from '../../../contexts/AuthContext';
 import { format, addDays, parseISO, addHours, isWithinInterval } from 'date-fns';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const AdminSchedule = () => {
@@ -140,7 +139,7 @@ const AdminSchedule = () => {
       if (error) throw error;
       console.log('Schedule updated successfully:', data);
       toast.success('Jadwal berhasil diperbarui');
-      fetchSchedules(); // Refresh schedules after update
+      fetchSchedules();
     } catch (error) {
       console.error('Error updating schedule status:', error);
       toast.error('Gagal memperbarui status jadwal');
@@ -149,19 +148,18 @@ const AdminSchedule = () => {
 
   if (loading) {
     return (
-      <div className="text-center py-10">
-        <div className="animate-spin rounded-full h-16 w-16 sm:h-32 sm:w-32 border-t-2 border-b-2 border-gray-900 mx-auto"></div>
-        <p className="mt-4 text-sm sm:text-base">Loading schedule...</p>
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-gray-900"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-10 text-red-500 px-4">
-        <p className="text-lg sm:text-xl font-bold mb-4">Error loading schedule</p>
-        <p className="mb-4 text-sm sm:text-base">{error}</p>
-        <Button onClick={() => fetchData()} className="mt-4">
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
+        <p className="text-xl font-bold mb-4 text-gray-800">Error loading schedule</p>
+        <p className="mb-4 text-gray-600">{error}</p>
+        <Button onClick={() => fetchData()} className="bg-gray-800 text-white hover:bg-gray-700">
           Retry
         </Button>
       </div>
@@ -169,20 +167,21 @@ const AdminSchedule = () => {
   }
 
   return (
-    <section id="admin-schedule" className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="container px-4 sm:px-6 py-8 sm:py-12">
+    <section className="min-h-screen bg-gray-100 py-12">
+      <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
+          className="bg-white rounded-lg shadow-lg p-8"
         >
-          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter text-center mb-6 sm:mb-8 text-gray-900">Kelola Jadwal Lapangan</h2>
-          <div className="mb-4">
+          <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">Kelola Jadwal Lapangan</h2>
+          <div className="mb-6">
             <Select 
               value={selectedCourt} 
               onValueChange={setSelectedCourt}
             >
-              <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectTrigger className="w-full sm:w-64 bg-gray-50 border border-gray-300">
                 <SelectValue placeholder="Pilih Lapangan" />
               </SelectTrigger>
               <SelectContent>
@@ -195,64 +194,50 @@ const AdminSchedule = () => {
             </Select>
           </div>
           {selectedCourt && (
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="w-full sm:w-auto mb-4">Lihat dan Kelola Jadwal</Button>
-              </DialogTrigger>
-              <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[90vw] h-[80vh] max-h-[80vh] overflow-auto">
-                <DialogHeader>
-                  <DialogTitle>Jadwal Lapangan {courts.find(c => c.id === selectedCourt)?.name}</DialogTitle>
-                  <DialogDescription>Kelola status slot waktu</DialogDescription>
-                </DialogHeader>
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse bg-white shadow-lg rounded-lg text-sm sm:text-base">
-                    <thead className="sticky top-0 bg-gray-200 z-10">
-                      <tr>
-                        <th className="p-2 sm:p-3 text-left">Time</th>
-                        {days.map(day => (
-                          <th key={day.name} className="p-2 sm:p-3 text-left">
-                            <div>{day.name.slice(0, 3)}</div>
-                            <div className="text-xs sm:text-sm text-gray-600">{day.displayDate}</div>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {timeSlots.map((time, index) => (
-                        <tr 
-                          key={time}
-                          className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}
-                        >
-                          <td className="p-2 sm:p-3 font-medium sticky left-0 bg-inherit">{time}</td>
-                          {days.map(day => {
-                            const isBooked = isSlotBooked(selectedCourt, day.date, time);
-                            return (
-                              <td key={`${day.name}-${time}`} className="p-1 sm:p-2">
-                                <Select
-                                  value={isBooked ? 'booked' : 'available'}
-                                  onValueChange={(value) => updateScheduleStatus(selectedCourt, day.date, time, value)}
-                                >
-                                  <SelectTrigger className={`w-full text-xs sm:text-sm ${
-                                    isBooked ? 'bg-red-500 text-white' : 'bg-green-100'
-                                  }`}>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="available">Tersedia</SelectItem>
-                                    <SelectItem value="booked">Dipesan</SelectItem>
-                                    <SelectItem value="maintenance">Pemeliharaan</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse bg-white text-sm">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="p-3 text-left font-semibold text-gray-600">Time</th>
+                    {days.map(day => (
+                      <th key={day.name} className="p-3 text-left font-semibold text-gray-600">
+                        <div>{day.name.slice(0, 3)}</div>
+                        <div className="text-xs text-gray-500">{day.displayDate}</div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {timeSlots.map((time, index) => (
+                    <tr key={time} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                      <td className="p-3 font-medium text-gray-800">{time}</td>
+                      {days.map(day => {
+                        const isBooked = isSlotBooked(selectedCourt, day.date, time);
+                        return (
+                          <td key={`${day.name}-${time}`} className="p-2">
+                            <Select
+                              value={isBooked ? 'booked' : 'available'}
+                              onValueChange={(value) => updateScheduleStatus(selectedCourt, day.date, time, value)}
+                            >
+                              <SelectTrigger className={`w-full text-xs ${
+                                isBooked ? 'bg-black text-white' : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="available">Tersedia</SelectItem>
+                                <SelectItem value="booked">Dipesan</SelectItem>
+                                <SelectItem value="maintenance">Pemeliharaan</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </motion.div>
       </div>

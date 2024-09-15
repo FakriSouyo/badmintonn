@@ -48,7 +48,7 @@ const ScheduleModal = ({ court, days, user, isSlotBooked, handleSlotClick }) => 
                             variant={isBooked ? "secondary" : "outline"}
                             size="sm" 
                             className={`w-full text-xs sm:text-sm ${
-                              isBooked ? 'bg-red-500 text-white cursor-not-allowed' : 
+                              isBooked ? 'bg-black text-white cursor-not-allowed' : 
                               'hover:bg-green-100'
                             }`}
                             onClick={() => !isBooked && handleSlotClick(court.id, day, time)}
