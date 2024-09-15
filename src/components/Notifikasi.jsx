@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiBell } from 'react-icons/fi';
+import { FiX, FiBell, FiTrash2, FiCheck } from 'react-icons/fi';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
+import { Checkbox } from './ui/checkbox';
 import toast from 'react-hot-toast';
 
 const Notifikasi = ({ isOpen, onClose, user }) => {
   const [notifications, setNotifications] = useState([]);
+  const [selectedNotifications, setSelectedNotifications] = useState([]);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   useEffect(() => {
     if (user && isOpen) {
@@ -79,6 +82,40 @@ const Notifikasi = ({ isOpen, onClose, user }) => {
     }
   };
 
+  const deleteSelectedNotifications = async () => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .in('id', selectedNotifications);
+
+      if (error) throw error;
+
+      setNotifications(prevNotifications =>
+        prevNotifications.filter(notif => !selectedNotifications.includes(notif.id))
+      );
+      setSelectedNotifications([]);
+      setIsSelectionMode(false);
+      toast.success('Notifikasi terpilih berhasil dihapus');
+    } catch (error) {
+      console.error('Error deleting selected notifications:', error);
+      toast.error('Gagal menghapus notifikasi terpilih');
+    }
+  };
+
+  const toggleNotificationSelection = (notifId) => {
+    setSelectedNotifications(prevSelected =>
+      prevSelected.includes(notifId)
+        ? prevSelected.filter(id => id !== notifId)
+        : [...prevSelected, notifId]
+    );
+  };
+
+  const toggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedNotifications([]);
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -98,9 +135,32 @@ const Notifikasi = ({ isOpen, onClose, user }) => {
           >
             <div className="flex justify-between items-center p-4 border-b">
               <h2 className="text-xl font-semibold text-gray-800">Notifikasi</h2>
-              <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
-                <FiX size={24} />
-              </button>
+              <div className="flex items-center">
+                <Button
+                  onClick={toggleSelectionMode}
+                  variant="ghost"
+                  size="sm"
+                  className="mr-2"
+                  title={isSelectionMode ? "Batal Pilih" : "Pilih Notifikasi"}
+                >
+                  {isSelectionMode ? <FiX size={20} /> : <FiCheck size={20} />}
+                </Button>
+                {isSelectionMode && (
+                  <Button
+                    onClick={deleteSelectedNotifications}
+                    variant="ghost"
+                    size="sm"
+                    className="mr-2"
+                    title="Hapus Notifikasi Terpilih"
+                    disabled={selectedNotifications.length === 0}
+                  >
+                    <FiTrash2 size={20} />
+                  </Button>
+                )}
+                <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
+                  <FiX size={24} />
+                </button>
+              </div>
             </div>
             <div className="p-4 overflow-y-auto max-h-[calc(80vh-64px)]">
               {notifications.length === 0 ? (
@@ -110,18 +170,27 @@ const Notifikasi = ({ isOpen, onClose, user }) => {
                   {notifications.map((notif) => (
                     <li
                       key={notif.id}
-                      className={`p-3 rounded-md transition-colors ${notif.is_read ? 'bg-gray-100' : 'bg-blue-50'}`}
+                      className={`p-3 rounded-md transition-colors ${notif.is_read ? 'bg-gray-100' : 'bg-blue-50'} flex items-center`}
                     >
-                      <p className="text-sm text-gray-800 mb-1">{notif.message}</p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(notif.created_at).toLocaleString('id-ID', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
+                      {isSelectionMode && (
+                        <Checkbox
+                          checked={selectedNotifications.includes(notif.id)}
+                          onCheckedChange={() => toggleNotificationSelection(notif.id)}
+                          className="mr-3"
+                        />
+                      )}
+                      <div className="flex-grow">
+                        <p className="text-sm text-gray-800 mb-1">{notif.message}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(notif.created_at).toLocaleString('id-ID', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
                     </li>
                   ))}
                 </ul>
