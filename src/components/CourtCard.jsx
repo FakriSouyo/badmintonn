@@ -11,24 +11,29 @@ const CourtCard = ({
   onBookingInitiated, 
   openAuthModal, 
   setSchedules,
-  isSlotBooked,  // Tambahkan ini
-  handleSlotClick  // Tambahkan ini
+  isSlotBooked,
+  getSlotStatus,  // Tambahkan ini
+  handleSlotClick
 }) => {
   const imageUrl = court.court_img 
     ? `${supabase.storage.from('imgcourt').getPublicUrl(court.court_img).data.publicUrl}`
     : "/api/placeholder/400/300";
 
   return (
-    <Card className="w-full max-w-sm mx-auto">
-      <CardHeader>
-        <CardTitle>{court.name}</CardTitle>
+    <Card className="w-full max-w-sm mx-auto overflow-hidden">
+      <CardHeader className="p-0">
+        <img src={imageUrl} alt={`Lapangan ${court.name}`} className="w-full h-48 object-cover" />
       </CardHeader>
-      <CardContent>
-        <img src={imageUrl} alt={`Lapangan${court.name}`} className="w-full h-48 object-cover rounded-md mb-4" />
-        <p className="text-lg font-semibold">Harga: Rp {court.hourly_rate.toLocaleString('id-ID')}/jam</p>
-        <p className="mt-2 text-sm">{court.description}</p>
+      <CardContent className="p-4">
+        <CardTitle className="text-xl mb-2">{court.name}</CardTitle>
+        <div className="bg-gray-100 rounded-lg p-3 mb-3">
+          <p className="text-lg font-semibold text-green-600">
+            Rp {court.hourly_rate.toLocaleString('id-ID')}<span className="text-sm text-gray-600">/jam</span>
+          </p>
+        </div>
+        <p className="text-sm text-gray-600 line-clamp-3">{court.description}</p>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="bg-gray-50 p-4">
         <ScheduleModal 
           court={court}
           schedules={schedules}
@@ -37,8 +42,9 @@ const CourtCard = ({
           onBookingInitiated={onBookingInitiated}
           openAuthModal={openAuthModal}
           setSchedules={setSchedules}
-          isSlotBooked={isSlotBooked}  // Teruskan ini
-          handleSlotClick={handleSlotClick}  // Teruskan ini
+          isSlotBooked={isSlotBooked}
+          getSlotStatus={getSlotStatus}  // Tambahkan ini
+          handleSlotClick={handleSlotClick}
         />
       </CardFooter>
     </Card>

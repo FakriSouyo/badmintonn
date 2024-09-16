@@ -4,6 +4,7 @@ import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from "./ui/button";
 import { useAuth } from '../contexts/AuthContext';
 import { FiUser, FiLogOut, FiFileText, FiSettings, FiMenu, FiX, FiBell } from 'react-icons/fi';
+import { GiShuttlecock } from 'react-icons/gi'; // Impor ikon shuttlecock
 import { supabase } from '../services/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -14,7 +15,7 @@ const Navbar = ({
   openProfileModal, 
   openNotifikasiModal,
   onLogout,
-  unreadNotificationCount // Tambahkan prop ini
+  unreadNotificationCount
 }) => {
   const { user } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -104,7 +105,7 @@ const Navbar = ({
   return (
     <header className="px-4 lg:px-6 h-16 flex items-center fixed top-0 w-full bg-white bg-opacity-40 backdrop-blur-md z-50">
       <NavLink to="home" className="flex items-center justify-center cursor-pointer">
-        <span className="ml-2 text-lg font-semibold">Gor Nandy</span>
+        <span className="text-xl font-bold font-serif text-black">Gor Nandy</span>
       </NavLink>
       <nav className="ml-auto flex items-center gap-4 sm:gap-6">
         <div className="hidden md:flex items-center gap-4 sm:gap-6">
@@ -170,11 +171,11 @@ const Navbar = ({
               <Button
                 onClick={openNotifikasiModal}
                 variant="ghost"
-                className="relative"
+                className="relative p-2"
               >
                 <FiBell size={24} />
                 {unreadNotificationCount > 0 && (
-                  <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
+                  <span className="absolute top-0 right-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full">
                     {unreadNotificationCount}
                   </span>
                 )}

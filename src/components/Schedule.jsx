@@ -4,7 +4,8 @@ import { Button } from "./ui/button";
 import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
-import { format, addDays, parseISO, addHours, isWithinInterval } from 'date-fns';
+import { format, addDays, parseISO, addHours, isWithinInterval, isSameHour } from 'date-fns';
+import ScheduleModal from './ScheduleModal';
 import CourtCard from './CourtCard';
 
 const Schedule = ({ onBookingInitiated, openAuthModal }) => {
@@ -101,23 +102,47 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
   };
 
   const isSlotBooked = useCallback((courtId, date, time) => {
-    const startDateTime = parseISO(`${date}T${time}`);
-    const endDateTime = addHours(startDateTime, 1);
+    const slotDateTime = parseISO(`${date}T${time}`);
     
     return schedules.some(schedule => 
       schedule.court_id === courtId &&
       schedule.date === date &&
-      (schedule.status === 'booked' || schedule.status === 'confirmed') && // Tambahkan 'confirmed' jika diperlukan
-      isWithinInterval(startDateTime, {
-        start: parseISO(`${schedule.date}T${schedule.start_time}`),
-        end: parseISO(`${schedule.date}T${schedule.end_time}`)
-      })
+      (schedule.status === 'booked' || schedule.status === 'confirmed' || schedule.status === 'holiday' || schedule.status === 'maintenance') &&
+      isSameHour(slotDateTime, parseISO(`${schedule.date}T${schedule.start_time}`))
     );
   }, [schedules]);
 
+  const getSlotStatus = useCallback((courtId, date, time) => {
+    const slotDateTime = parseISO(`${date}T${time}`);
+    
+    const schedule = schedules.find(schedule => 
+      schedule.court_id === courtId &&
+      schedule.date === date &&
+      isSameHour(slotDateTime, parseISO(`${schedule.date}T${schedule.start_time}`))
+    );
+
+    return schedule ? schedule.status : 'available';
+  }, [schedules]);
+
   const handleSlotClick = async (courtId, day, startTime) => {
-    if (isSlotBooked(courtId, day.date, startTime)) {
-      toast.error('Maaf, slot ini sudah dipesan. Silakan pilih slot lain.');
+    const status = getSlotStatus(courtId, day.date, startTime);
+    if (status !== 'available') {
+      let message;
+      switch (status) {
+        case 'booked':
+        case 'confirmed':
+          message = 'Maaf, slot ini sudah dipesan.';
+          break;
+        case 'holiday':
+          message = 'Maaf, slot ini tidak tersedia karena hari libur.';
+          break;
+        case 'maintenance':
+          message = 'Maaf, slot ini tidak tersedia karena sedang dalam pemeliharaan.';
+          break;
+        default:
+          message = 'Maaf, slot ini tidak tersedia.';
+      }
+      toast.error(message);
       return;
     }
 
@@ -179,7 +204,7 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
           {courts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {courts.map(court => (
-                <CourtCard 
+                <CourtCard
                   key={court.id}
                   court={court}
                   schedules={schedules}
@@ -189,6 +214,7 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
                   openAuthModal={openAuthModal}
                   setSchedules={setSchedules}
                   isSlotBooked={isSlotBooked}
+                  getSlotStatus={getSlotStatus}  // Tambahkan ini
                   handleSlotClick={handleSlotClick}
                 />
               ))}
