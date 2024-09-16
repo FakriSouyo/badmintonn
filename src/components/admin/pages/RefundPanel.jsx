@@ -4,20 +4,23 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import toast from 'react-hot-toast';
-import { FiInfo, FiTrash2 } from 'react-icons/fi';
+import { FiInfo, FiTrash2, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 
 export const RefundPanel = () => {
   const [refunds, setRefunds] = useState([]);
   const [selectedRefund, setSelectedRefund] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const refundsPerPage = 5;
 
   useEffect(() => {
     fetchRefunds();
-  }, []);
+  }, [currentPage]);
 
   const fetchRefunds = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error, count } = await supabase
         .from('refunds')
         .select(`
           *,
@@ -30,12 +33,14 @@ export const RefundPanel = () => {
             courts (name),
             users (email)
           )
-        `)
-        .order('created_at', { ascending: false });
+        `, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range((currentPage - 1) * refundsPerPage, currentPage * refundsPerPage - 1);
 
       if (error) throw error;
       console.log('Fetched refunds:', data);
       setRefunds(data);
+      setTotalPages(Math.ceil(count / refundsPerPage));
     } catch (error) {
       console.error('Error fetching refunds:', error);
       toast.error('Gagal mengambil data refund');
@@ -118,6 +123,51 @@ export const RefundPanel = () => {
     </Dialog>
   );
 
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+
+  const renderPagination = () => {
+    const pageNumbers = [];
+    for (let i = 1; i <= totalPages; i++) {
+      pageNumbers.push(
+        <Button
+          key={i}
+          onClick={() => handlePageChange(i)}
+          variant={currentPage === i ? "default" : "outline"}
+          size="sm"
+          className="mx-1"
+        >
+          {i}
+        </Button>
+      );
+    }
+
+    return (
+      <div className="flex justify-center items-center mt-4">
+        <Button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          variant="outline"
+          size="sm"
+          className="mr-2"
+        >
+          <FiChevronLeft />
+        </Button>
+        {pageNumbers}
+        <Button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          variant="outline"
+          size="sm"
+          className="ml-2"
+        >
+          <FiChevronRight />
+        </Button>
+      </div>
+    );
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h2 className="text-2xl font-bold mb-4">Panel Refund</h2>
@@ -171,7 +221,7 @@ export const RefundPanel = () => {
           ))}
         </TableBody>
       </Table>
-
+      {renderPagination()}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

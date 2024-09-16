@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/services/supabaseClient';
 import { format, parseISO, addHours } from 'date-fns';
-import { FiInfo, FiTrash2, FiDownload } from 'react-icons/fi';
+import { FiInfo, FiTrash2, FiDownload, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 
@@ -28,31 +28,36 @@ export const Payments = () => {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const paymentsPerPage = 5;
 
   useEffect(() => {
     fetchPayments();
     subscribeToBookingChanges();
-  }, []);
+  }, [currentPage]);
 
   const fetchPayments = async () => {
-    const { data, error } = await supabase
+    const { data, error, count } = await supabase
       .from('bookings')
       .select(`
         *,
         courts (name),
         users (email)
-      `)
-      .order('created_at', { ascending: false });
+      `, { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range((currentPage - 1) * paymentsPerPage, currentPage * paymentsPerPage - 1);
+
     if (error) {
       console.error('Error fetching payments:', error);
       toast.error('Gagal mengambil data pembayaran');
     } else {
-      // Set default payment status to 'pending' if not set
       const updatedData = data.map(booking => ({
         ...booking,
         payment_status: booking.payment_status || 'pending'
       }));
       setPayments(updatedData);
+      setTotalPages(Math.ceil(count / paymentsPerPage));
     }
   };
 
@@ -245,6 +250,51 @@ export const Payments = () => {
     XLSX.writeFile(workbook, "payments.xlsx");
   };
 
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+
+  const renderPagination = () => {
+    const pageNumbers = [];
+    for (let i = 1; i <= totalPages; i++) {
+      pageNumbers.push(
+        <Button
+          key={i}
+          onClick={() => handlePageChange(i)}
+          variant={currentPage === i ? "default" : "outline"}
+          size="sm"
+          className="mx-1"
+        >
+          {i}
+        </Button>
+      );
+    }
+
+    return (
+      <div className="flex justify-center items-center mt-4">
+        <Button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          variant="outline"
+          size="sm"
+          className="mr-2"
+        >
+          <FiChevronLeft />
+        </Button>
+        {pageNumbers}
+        <Button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          variant="outline"
+          size="sm"
+          className="ml-2"
+        >
+          <FiChevronRight />
+        </Button>
+      </div>
+    );
+  };
+
   return (
     <div className="p-4">
       <h2 className="text-2xl font-bold mb-4">Kelola Pembayaran</h2>
@@ -352,6 +402,7 @@ export const Payments = () => {
           </TableBody>
         </Table>
       </div>
+      {renderPagination()}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

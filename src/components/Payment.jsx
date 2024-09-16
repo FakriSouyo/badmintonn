@@ -68,20 +68,40 @@ const Payment = ({ isOpen, onClose, bookingData, totalAmount }) => {
         throw new Error('Data pemesanan tidak valid');
       }
 
+      let paymentStatus, bookingStatus;
+
+      if (selectedMethod === 'Bayar di Tempat') {
+        paymentStatus = 'pending';
+        bookingStatus = 'pending';
+      } else if (selectedMethod === 'Transfer Bank' || selectedMethod === 'QRIS') {
+        paymentStatus = 'pending';
+        bookingStatus = 'pending';
+      } else {
+        paymentStatus = 'paid';
+        bookingStatus = 'confirmed';
+      }
+
       const { data, error } = await supabase
         .from('bookings')
         .update({
           payment_method: selectedMethod,
-          payment_status: selectedMethod === 'Bayar di Tempat' ? 'pending' : 'paid',
+          payment_status: paymentStatus,
           proof_of_payment_url: proofOfPayment,
-          status: selectedMethod === 'Bayar di Tempat' ? 'pending' : 'confirmed'
+          status: bookingStatus
         })
         .eq('id', bookingData.id)
         .select();
 
       if (error) throw error;
 
-      toast.success('Pembayaran berhasil diproses');
+      let toastMessage;
+      if (paymentStatus === 'pending') {
+        toastMessage = 'Pembayaran sedang diproses. Silakan tunggu konfirmasi dari admin.';
+      } else {
+        toastMessage = 'Pembayaran berhasil diproses';
+      }
+
+      toast.success(toastMessage);
       onClose();
     } catch (error) {
       console.error('Kesalahan pembayaran:', error);

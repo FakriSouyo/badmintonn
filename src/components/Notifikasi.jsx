@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiBell, FiTrash2, FiCheck } from 'react-icons/fi';
+import { FiX, FiBell, FiTrash2, FiCheck, FiList } from 'react-icons/fi';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
@@ -153,6 +153,14 @@ const Notifikasi = ({ isOpen, onClose, user }) => {
     setSelectedNotifications([]);
   };
 
+  const toggleSelectAll = () => {
+    if (selectedNotifications.length === notifications.length) {
+      setSelectedNotifications([]);
+    } else {
+      setSelectedNotifications(notifications.map(notif => notif.id));
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -180,19 +188,30 @@ const Notifikasi = ({ isOpen, onClose, user }) => {
                   className="mr-2"
                   title={isSelectionMode ? "Batal Pilih" : "Pilih Notifikasi"}
                 >
-                  {isSelectionMode ? <FiX size={20} /> : <FiCheck size={20} />}
+                  {isSelectionMode ? <FiX size={20} /> : <FiList size={20} />}
                 </Button>
                 {isSelectionMode && (
-                  <Button
-                    onClick={deleteSelectedNotifications}
-                    variant="ghost"
-                    size="sm"
-                    className="mr-2"
-                    title="Hapus Notifikasi Terpilih"
-                    disabled={selectedNotifications.length === 0}
-                  >
-                    <FiTrash2 size={20} />
-                  </Button>
+                  <>
+                    <Button
+                      onClick={toggleSelectAll}
+                      variant="ghost"
+                      size="sm"
+                      className="mr-2"
+                      title="Pilih Semua"
+                    >
+                      <FiCheck size={20} />
+                    </Button>
+                    <Button
+                      onClick={deleteSelectedNotifications}
+                      variant="ghost"
+                      size="sm"
+                      className="mr-2"
+                      title="Hapus Notifikasi Terpilih"
+                      disabled={selectedNotifications.length === 0}
+                    >
+                      <FiTrash2 size={20} />
+                    </Button>
+                  </>
                 )}
                 <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
                   <FiX size={24} />

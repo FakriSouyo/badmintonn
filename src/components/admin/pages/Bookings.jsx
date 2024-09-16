@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from '@/services/supabaseClient';
 import { format, parseISO, addHours } from 'date-fns';
-import { FiEye, FiTrash2, FiDownload } from 'react-icons/fi';
+import { FiEye, FiTrash2, FiDownload, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 
@@ -28,26 +28,32 @@ export const Bookings = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [bookingToDelete, setBookingToDelete] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const bookingsPerPage = 5;
 
   useEffect(() => {
     fetchBookings();
-  }, []);
+  }, [currentPage]);
 
   const fetchBookings = async () => {
-    const { data, error } = await supabase
+    const { data, error, count } = await supabase
       .from('bookings')
       .select(`
         *,
         courts (name),
         users (email)
-      `)
-      .eq('payment_status', 'paid') // Hanya ambil pemesanan dengan status pembayaran 'paid'
-      .order('created_at', { ascending: false });
+      `, { count: 'exact' })
+      .eq('payment_status', 'paid')
+      .order('created_at', { ascending: false })
+      .range((currentPage - 1) * bookingsPerPage, currentPage * bookingsPerPage - 1);
+
     if (error) {
       console.error('Error fetching bookings:', error);
       toast.error('Gagal mengambil data pemesanan');
     } else {
       setBookings(data || []);
+      setTotalPages(Math.ceil(count / bookingsPerPage));
     }
   };
 
@@ -176,6 +182,51 @@ export const Bookings = () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Bookings");
     XLSX.writeFile(workbook, "bookings.xlsx");
+  };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+
+  const renderPagination = () => {
+    const pageNumbers = [];
+    for (let i = 1; i <= totalPages; i++) {
+      pageNumbers.push(
+        <Button
+          key={i}
+          onClick={() => handlePageChange(i)}
+          variant={currentPage === i ? "default" : "outline"}
+          size="sm"
+          className="mx-1"
+        >
+          {i}
+        </Button>
+      );
+    }
+
+    return (
+      <div className="flex justify-center items-center mt-4">
+        <Button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          variant="outline"
+          size="sm"
+          className="mr-2"
+        >
+          <FiChevronLeft />
+        </Button>
+        {pageNumbers}
+        <Button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          variant="outline"
+          size="sm"
+          className="ml-2"
+        >
+          <FiChevronRight />
+        </Button>
+      </div>
+    );
   };
 
   return (
@@ -307,6 +358,7 @@ export const Bookings = () => {
       ) : (
         <p className="text-center text-gray-500 my-4">Tidak ada pemesanan yang sudah dibayar.</p>
       )}
+      {renderPagination()}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
