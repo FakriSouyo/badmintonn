@@ -4,9 +4,10 @@ import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from "./ui/button";
 import { useAuth } from '../contexts/AuthContext';
 import { FiUser, FiLogOut, FiFileText, FiSettings, FiMenu, FiX, FiBell } from 'react-icons/fi';
-import { GiShuttlecock } from 'react-icons/gi'; // Impor ikon shuttlecock
+import { GiShuttlecock } from 'react-icons/gi';
 import { supabase } from '../services/supabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
+import notificationSound from '../assets/sounds/notification.mp3';
 
 const Navbar = ({ 
   openAuthModal, 
@@ -15,16 +16,18 @@ const Navbar = ({
   openProfileModal, 
   openNotifikasiModal,
   onLogout,
-  unreadNotificationCount
 }) => {
   const { user } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [fullName, setFullName] = useState('');
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const dropdownRef = useRef(null);
   const mobileMenuRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const audioRef = useRef(new Audio(notificationSound));
+  const [audioAllowed, setAudioAllowed] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -62,6 +65,65 @@ const Navbar = ({
 
     fetchFullName();
   }, [user]);
+
+  useEffect(() => {
+    const notificationSubscription = supabase
+      .channel('public:notifications')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, handleNewNotification)
+      .subscribe();
+
+    // Coba mainkan audio saat komponen dimount untuk memicu interaksi pengguna
+    const playAudio = () => {
+      audioRef.current.play()
+        .then(() => {
+          setAudioAllowed(true);
+          console.log('Audio playback allowed');
+        })
+        .catch(error => console.error('Audio playback not allowed:', error));
+    };
+
+    document.addEventListener('click', playAudio, { once: true });
+
+    // Tambahkan ini untuk mengambil jumlah notifikasi yang belum dibaca saat komponen dimount
+    fetchUnreadNotificationCount();
+
+    return () => {
+      supabase.removeChannel(notificationSubscription);
+      document.removeEventListener('click', playAudio);
+    };
+  }, [user]);
+
+  const handleNewNotification = (payload) => {
+    console.log('New notification received:', payload);
+    if (audioAllowed) {
+      audioRef.current.play()
+        .then(() => console.log('Notification sound played successfully'))
+        .catch(error => console.error('Error playing notification sound:', error));
+    }
+    
+    // Update unread notification count jika notifikasi baru belum dibaca
+    if (!payload.new.is_read) {
+      setUnreadNotificationCount(prev => prev + 1);
+    }
+  };
+
+  const fetchUnreadNotificationCount = async () => {
+    if (user) {
+      try {
+        const { count, error } = await supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('is_read', false);
+
+        if (error) throw error;
+        setUnreadNotificationCount(count);
+      } catch (error) {
+        console.error('Error fetching unread notification count:', error);
+        // Tambahkan penanganan error yang lebih spesifik jika diperlukan
+      }
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -105,7 +167,7 @@ const Navbar = ({
   return (
     <header className="px-4 lg:px-6 h-16 flex items-center fixed top-0 w-full bg-white bg-opacity-40 backdrop-blur-md z-50">
       <NavLink to="home" className="flex items-center justify-center cursor-pointer">
-        <span className="text-xl font-bold font-serif text-black">Gor Nandy</span>
+        <span className="text-xl font-bold font-sans text-black">Gor Nandy</span>
       </NavLink>
       <nav className="ml-auto flex items-center gap-4 sm:gap-6">
         <div className="hidden md:flex items-center gap-4 sm:gap-6">
@@ -169,7 +231,10 @@ const Navbar = ({
               </div>
             {!user.is_admin && (
               <Button
-                onClick={openNotifikasiModal}
+                onClick={() => {
+                  openNotifikasiModal();
+                  setUnreadNotificationCount(0); // Reset count when opening notifications
+                }}
                 variant="ghost"
                 className="relative p-2"
               >
@@ -211,7 +276,6 @@ const Navbar = ({
                   <Button onClick={() => {openBookingModal(); setIsMobileMenuOpen(false);}} className="text-sm font-medium w-full mt-2">
                     Pesan Sekarang
                   </Button>
-                  
                 </>
               )}
             </div>
