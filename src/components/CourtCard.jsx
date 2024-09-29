@@ -12,7 +12,7 @@ const CourtCard = ({
   openAuthModal, 
   setSchedules,
   isSlotBooked,
-  getSlotStatus,  // Tambahkan ini
+  getSlotStatus,  
   handleSlotClick
 }) => {
   const imageUrl = court.court_img 
@@ -43,7 +43,7 @@ const CourtCard = ({
           openAuthModal={openAuthModal}
           setSchedules={setSchedules}
           isSlotBooked={isSlotBooked}
-          getSlotStatus={getSlotStatus}  // Tambahkan ini
+          getSlotStatus={getSlotStatus}  
           handleSlotClick={handleSlotClick}
         />
       </CardFooter>
