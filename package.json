@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "cypress:open": "cypress open",
-  "cypress:run": "cypress run"
+    "cypress:run": "cypress run"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.2",
@@ -24,6 +24,7 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@supabase/supabase-js": "^2.45.1",
     "@tabler/icons-react": "^3.14.0",
+    "chart.js": "^4.4.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
@@ -32,6 +33,7 @@
     "framer-motion": "^11.3.28",
     "lucide-react": "^0.428.0",
     "react": "^18.3.1",
+    "react-chartjs-2": "^5.2.0",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.4.1",
