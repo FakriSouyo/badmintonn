@@ -21,6 +21,7 @@ import { supabase } from './services/supabaseClient';
 
 function AppContent() {
   const { user, loading, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const authModal = useModal();
   const bookingModal = useModal();
   const bookingHistoryModal = useModal();
@@ -30,6 +31,18 @@ function AppContent() {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('Error during logout:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading) {
@@ -85,7 +98,7 @@ function AppContent() {
     setUnreadNotificationCount(0); // Reset count when opening notifications
   };
 
-  if (loading) {
+  if (loading || isLoggingOut) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
@@ -117,9 +130,10 @@ function AppContent() {
                 openBookingHistory={bookingHistoryModal.openModal}
                 openProfileModal={profileModal.openModal}
                 openNotifikasiModal={handleNotificationOpen}
-                onLogout={logout}
+                onLogout={handleLogout}
                 user={user}
                 unreadNotificationCount={unreadNotificationCount}
+                isLoggingOut={isLoggingOut}
               />
               <main className="flex-grow">
                 <Routes>
