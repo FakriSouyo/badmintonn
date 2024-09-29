@@ -5,6 +5,7 @@ import { supabase } from '../services/supabaseClient';
 import toast from 'react-hot-toast';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { format, parseISO, addHours } from 'date-fns';
 
 const Payment = ({ isOpen, onClose, bookingData, totalAmount }) => {
   const [selectedMethod, setSelectedMethod] = useState('');
@@ -14,7 +15,6 @@ const Payment = ({ isOpen, onClose, bookingData, totalAmount }) => {
   const paymentMethods = [
     { id: 1, name: 'Transfer Bank' },
     { id: 2, name: 'QRIS' },
-    { id: 3, name: 'Bayar di Tempat' },
   ];
 
   const bankInfo = {
@@ -51,55 +51,72 @@ const Payment = ({ isOpen, onClose, bookingData, totalAmount }) => {
     }
   };
 
+  const updateScheduleToProcessing = async (booking) => {
+    try {
+      const startTime = parseISO(`${booking.booking_date}T${booking.start_time}`);
+      const endTime = parseISO(`${booking.booking_date}T${booking.end_time}`);
+      let currentTime = startTime;
+
+      while (currentTime < endTime) {
+        const { error } = await supabase
+          .from('schedules')
+          .upsert({
+            court_id: booking.court_id,
+            date: format(currentTime, 'yyyy-MM-dd'),
+            start_time: format(currentTime, 'HH:mm'),
+            end_time: format(addHours(currentTime, 1), 'HH:mm'),
+            status: 'maintenance', // Menggunakan 'maintenance' untuk menandakan "proses pemesanan"
+            user_id: booking.user_id
+          }, { onConflict: ['court_id', 'date', 'start_time'] });
+
+        if (error) throw error;
+
+        currentTime = addHours(currentTime, 1);
+      }
+
+      console.log('Jadwal berhasil diperbarui menjadi proses pemesanan');
+    } catch (error) {
+      console.error('Error updating schedule to processing:', error);
+      throw error;
+    }
+  };
+
   const handlePayment = async () => {
     if (!selectedMethod) {
       toast.error('Silakan pilih metode pembayaran');
       return;
     }
 
-    if (selectedMethod !== 'Bayar di Tempat' && !proofOfPayment) {
+    if (!proofOfPayment) {
       toast.error('Silakan unggah bukti pembayaran');
       return;
     }
 
     setLoading(true);
     try {
-      if (!bookingData || !bookingData.id) {
+      if (!bookingData) {
         throw new Error('Data pemesanan tidak valid');
       }
 
-      let paymentStatus, bookingStatus;
-
-      if (selectedMethod === 'Bayar di Tempat') {
-        paymentStatus = 'pending';
-        bookingStatus = 'pending';
-      } else if (selectedMethod === 'Transfer Bank' || selectedMethod === 'QRIS') {
-        paymentStatus = 'pending';
-        bookingStatus = 'pending';
-      } else {
-        paymentStatus = 'paid';
-        bookingStatus = 'confirmed';
-      }
-
-      const { data, error } = await supabase
+      // Sekarang kita mengirim data pemesanan ke database
+      const { data: bookingInsertData, error: bookingInsertError } = await supabase
         .from('bookings')
-        .update({
+        .insert({
+          ...bookingData,
           payment_method: selectedMethod,
-          payment_status: paymentStatus,
+          payment_status: 'pending',
           proof_of_payment_url: proofOfPayment,
-          status: bookingStatus
+          status: 'pending'
         })
-        .eq('id', bookingData.id)
-        .select();
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (bookingInsertError) throw bookingInsertError;
 
-      let toastMessage;
-      if (paymentStatus === 'pending') {
-        toastMessage = 'Pembayaran sedang diproses. Silakan tunggu konfirmasi dari admin.';
-      } else {
-        toastMessage = 'Pembayaran berhasil diproses';
-      }
+      // Perbarui jadwal menjadi "proses pemesanan"
+      await updateScheduleToProcessing(bookingInsertData);
+
+      const toastMessage = 'Pembayaran sedang diproses. Silakan tunggu konfirmasi dari admin.';
 
       toast.success(toastMessage);
       onClose();
@@ -171,7 +188,7 @@ const Payment = ({ isOpen, onClose, bookingData, totalAmount }) => {
               </div>
             )}
 
-            {selectedMethod && selectedMethod !== 'Bayar di Tempat' && (
+            {selectedMethod && (
               <div className="mb-4">
                 <h3 className="font-semibold mb-2">Upload Bukti Pembayaran:</h3>
                 <div className="flex items-center justify-center w-full">
@@ -204,7 +221,7 @@ const Payment = ({ isOpen, onClose, bookingData, totalAmount }) => {
             <Button
               onClick={handlePayment}
               className="w-full"
-              disabled={loading || (selectedMethod !== 'Bayar di Tempat' && !proofOfPayment)}
+              disabled={loading || !proofOfPayment}
             >
               {loading ? 'Memproses...' : 'Bayar Sekarang'}
             </Button>
