@@ -32,7 +32,7 @@ const ScheduleModal = ({ court, days, user, isSlotBooked, getSlotStatus, handleS
       case 'holiday':
         return 'Libur';
       case 'maintenance':
-        return 'Proses Pemesanan';
+        return 'Proses';
       default:
         return 'Tersedia';
     }
