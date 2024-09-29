@@ -84,43 +84,27 @@ export const Payments = () => {
   };
 
   const updatePaymentStatus = async (id, newStatus) => {
-  try {
-    // Perbarui status pembayaran saja
-    const { data, error } = await supabase
-      .from('bookings')
-      .update({ 
-        payment_status: newStatus
-      })
-      .eq('id', id)
-      .select('*, users(id)')
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .update({ 
+          payment_status: newStatus
+        })
+        .eq('id', id)
+        .select('*, users(id)')
+        .single();
 
-    if (error) throw error;
+      if (error) throw error;
 
-    // Buat notifikasi untuk pengguna
-    let statusIndonesia = '';
-    switch (newStatus) {
-      case 'paid':
-        statusIndonesia = 'dikonfirmasi';
-        break;
-      case 'pending':
-        statusIndonesia = 'ditunda';
-        break;
-      case 'cancelled':
-        statusIndonesia = 'dibatalkan';
-        break;
-      case 'failed':
-        statusIndonesia = 'gagal';
-        break;
-      default:
-        statusIndonesia = newStatus;
-    }
-    const bookingCode = data.id.toString().padStart(4, '0');
-    const message = `Pembayaran untuk Pemesanan #${bookingCode} telah ${statusIndonesia}.`;
-    await createNotification(data.users.id, data.id, message, 'payment');
+      // Jika pembayaran menjadi 'paid' dan status pemesanan sudah 'confirmed', buat notifikasi
+      if (newStatus === 'paid' && data.status === 'confirmed') {
+        const bookingCode = data.id.toString().padStart(4, '0');
+        const message = `Pembayaran untuk Pemesanan #${bookingCode} telah dikonfirmasi dan pemesanan siap digunakan.`;
+        await createNotification(data.users.id, data.id, message, 'payment');
+      }
 
-    fetchPayments(); // Refresh daftar pembayaran
-    toast.success(`Status pembayaran berhasil diubah menjadi ${newStatus}`);
+      fetchPayments();
+      toast.success(`Status pembayaran berhasil diubah menjadi ${newStatus}`);
     } catch (error) {
       console.error('Error updating payment status:', error);
       toast.error('Gagal mengubah status pembayaran');
@@ -334,10 +318,10 @@ export const Payments = () => {
                       <SelectValue placeholder="Status Pembayaran" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="paid">Paid</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                      <SelectItem value="failed">Failed</SelectItem>
+                      <SelectItem value="pending">Tetunda</SelectItem>
+                      <SelectItem value="paid">Dibayar</SelectItem>
+                      <SelectItem value="cancelled">Dibatalkan</SelectItem>
+                      <SelectItem value="failed">Gagal</SelectItem>
                     </SelectContent>
                   </Select>
                 </TableCell>
@@ -358,20 +342,26 @@ export const Payments = () => {
                       </DialogTrigger>
                       <DialogContent className="w-full max-w-md">
                         <DialogHeader>
-                          <DialogTitle>Detail Pembayaran</DialogTitle>
+                          <DialogTitle className="text-2xl font-bold mb-4">Detail Pembayaran</DialogTitle>
                         </DialogHeader>
                         {selectedPayment && (
-                          <div className="space-y-2">
-                            <p><strong>Pengguna:</strong> {selectedPayment.users.email}</p>
-                            <p><strong>Lapangan:</strong> {selectedPayment.courts.name}</p>
-                            <p><strong>Jumlah:</strong> Rp {selectedPayment.total_price.toLocaleString()}</p>
-                            <p><strong>Metode Pembayaran:</strong> {selectedPayment.payment_method}</p>
-                            <p><strong>Status Pembayaran:</strong> {selectedPayment.payment_status}</p>
-                            <p><strong>Status Pemesanan:</strong> {selectedPayment.status}</p>
-                            <p><strong>Tanggal:</strong> {format(new Date(selectedPayment.created_at), 'dd/MM/yyyy HH:mm')}</p>
+                          <div className="space-y-4">
+                            <div className="bg-gray-100 p-4 rounded-lg">
+                              <h3 className="text-lg font-semibold mb-2">Informasi Umum</h3>
+                              <p><span className="font-medium">Pengguna:</span> {selectedPayment.users.email}</p>
+                              <p><span className="font-medium">Lapangan:</span> {selectedPayment.courts.name}</p>
+                              <p><span className="font-medium">Tanggal:</span> {format(new Date(selectedPayment.created_at), 'dd/MM/yyyy HH:mm')}</p>
+                            </div>
+                            <div className="bg-gray-100 p-4 rounded-lg">
+                              <h3 className="text-lg font-semibold mb-2">Detail Pembayaran</h3>
+                              <p><span className="font-medium">Jumlah:</span> Rp {selectedPayment.total_price.toLocaleString()}</p>
+                              <p><span className="font-medium">Metode Pembayaran:</span> {selectedPayment.payment_method}</p>
+                              <p><span className="font-medium">Status Pembayaran:</span> <span className={`font-bold ${selectedPayment.payment_status === 'paid' ? 'text-green-600' : 'text-red-600'}`}>{selectedPayment.payment_status}</span></p>
+                              <p><span className="font-medium">Status Pemesanan:</span> {selectedPayment.status}</p>
+                            </div>
                             {selectedPayment.proof_of_payment_url && (
-                              <div>
-                                <p><strong>Bukti Pembayaran:</strong></p>
+                              <div className="bg-gray-100 p-4 rounded-lg">
+                                <h3 className="text-lg font-semibold mb-2">Bukti Pembayaran</h3>
                                 <img 
                                   src={selectedPayment.proof_of_payment_url} 
                                   alt="Bukti Pembayaran" 

@@ -257,7 +257,7 @@ const AdminSchedule = () => {
           <SelectContent>
             <SelectItem value="holiday">Libur</SelectItem>
             <SelectItem value="booked">Dipesan</SelectItem>
-            <SelectItem value="maintenance">Pemeliharaan</SelectItem>
+            <SelectItem value="maintenance">Proses Pemesanan</SelectItem>
           </SelectContent>
         </Select>
         <DialogFooter>
@@ -381,7 +381,7 @@ const AdminSchedule = () => {
                                   <SelectItem value="available">Tersedia</SelectItem>
                                   <SelectItem value="booked">Dipesan</SelectItem>
                                   <SelectItem value="confirmed">Terkonfirmasi</SelectItem>
-                                  <SelectItem value="maintenance">Pemeliharaan</SelectItem>
+                                  <SelectItem value="maintenance">Proses Pemesanan</SelectItem>
                                   <SelectItem value="holiday">Libur</SelectItem>
                                 </SelectContent>
                               </Select>

@@ -57,7 +57,7 @@ const Notifikasi = ({ isOpen, onClose, user }) => {
 
   const deleteOldNotifications = async () => {
     try {
-      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      const thirtyMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       const { error } = await supabase
         .from('notifications')
         .delete()

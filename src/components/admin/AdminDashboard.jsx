@@ -30,12 +30,12 @@ const AdminDashboard = () => {
   }
 
   const navItems = [
-    { label: 'Dashboard', icon: <FiHome />, href: '/admin/dashboard' },
-    { label: 'Courts', icon: <FiCalendar />, href: '/admin/courts' },
-    { label: 'Bookings', icon: <FiBookOpen />, href: '/admin/bookings' },
-    { label: 'Payments', icon: <FiDollarSign />, href: '/admin/payments' },
-    { label: 'Schedule', icon: <FiCalendar />, href: '/admin/schedule' },
-    { label: 'Refunds', icon: <FiRefreshCcw />, href: '/admin/refunds' },
+    { label: 'Admin Dashboard', icon: <FiHome />, href: '/admin/dashboard' },
+    { label: 'Lapangan', icon: <FiCalendar />, href: '/admin/courts' },
+    { label: 'Pemesanan', icon: <FiBookOpen />, href: '/admin/bookings' },
+    { label: 'Pembayaran', icon: <FiDollarSign />, href: '/admin/payments' },
+    { label: 'Jadwal', icon: <FiCalendar />, href: '/admin/schedule' },
+    { label: 'Pengembalian Dana', icon: <FiRefreshCcw />, href: '/admin/refunds' },
   ];
 
   const handleLogout = () => {
@@ -95,7 +95,7 @@ const AdminDashboard = () => {
         <Dialog open={isLogoutDialogOpen} onOpenChange={setIsLogoutDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Konfirmasi Logout</DialogTitle>
+              <DialogTitle>Konfirmasi Keluar</DialogTitle>
             </DialogHeader>
             <DialogDescription>
               Apakah Anda yakin ingin keluar dari sistem?
@@ -105,7 +105,7 @@ const AdminDashboard = () => {
                 Tidak
               </Button>
               <Button variant="destructive" onClick={confirmLogout}>
-                Ya, Logout
+                Ya, Keluar
               </Button>
             </DialogFooter>
           </DialogContent>

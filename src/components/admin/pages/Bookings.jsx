@@ -71,11 +71,9 @@ export const Bookings = () => {
       if (newStatus === 'confirmed') {
         await updateAdminAndUserSchedule(data, newStatus);
       } else {
-        // Untuk status 'pending', 'cancelled', 'finished', atau status lainnya
         await updateAdminAndUserSchedule(data, newStatus);
       }
   
-      // Buat notifikasi untuk pengguna
       let statusIndonesia = '';
       switch (newStatus) {
         case 'confirmed':
@@ -159,7 +157,6 @@ export const Bookings = () => {
 
       if (error) throw error;
 
-      // Ubah jadwal menjadi tersedia setelah penghapusan
       await updateAdminAndUserSchedule(data, 'available');
       fetchBookings();
       toast.success('Pemesanan berhasil dihapus');
@@ -288,10 +285,10 @@ export const Bookings = () => {
                           <SelectValue placeholder="Status Pemesanan" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="confirmed">Confirmed</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
-                          <SelectItem value="finished">Finished</SelectItem>
+                          <SelectItem value="pending">Tetunda</SelectItem>
+                          <SelectItem value="confirmed">Dikonfirmasi</SelectItem>
+                          <SelectItem value="cancelled">Dibatalkan</SelectItem>
+                          <SelectItem value="finished">Selesai</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -312,19 +309,25 @@ export const Bookings = () => {
                         </DialogTrigger>
                         <DialogContent className="w-full max-w-md">
                           <DialogHeader>
-                            <DialogTitle>Detail Pemesanan</DialogTitle>
+                            <DialogTitle className="text-2xl font-bold mb-4">Detail Pemesanan</DialogTitle>
                           </DialogHeader>
                           {selectedBooking && (
-                            <div className="space-y-2">
-                              <p><strong>Pengguna:</strong> {selectedBooking.users.email}</p>
-                              <p><strong>Lapangan:</strong> {selectedBooking.courts.name}</p>
-                              <p><strong>Tanggal:</strong> {format(new Date(selectedBooking.booking_date), 'dd/MM/yyyy')}</p>
-                              <p><strong>Waktu:</strong> {`${selectedBooking.start_time} - ${selectedBooking.end_time}`}</p>
-                              <p><strong>Status:</strong> {selectedBooking.status}</p>
-                              <p><strong>Total Harga:</strong> Rp {selectedBooking.total_price.toLocaleString()}</p>
+                            <div className="space-y-4">
+                              <div className="bg-gray-100 p-4 rounded-lg">
+                                <h3 className="text-lg font-semibold mb-2">Informasi Umum</h3>
+                                <p><span className="font-medium">Pengguna:</span> {selectedBooking.users.email}</p>
+                                <p><span className="font-medium">Lapangan:</span> {selectedBooking.courts.name}</p>
+                                <p><span className="font-medium">Tanggal:</span> {format(new Date(selectedBooking.booking_date), 'dd/MM/yyyy')}</p>
+                                <p><span className="font-medium">Waktu:</span> {`${selectedBooking.start_time} - ${selectedBooking.end_time}`}</p>
+                              </div>
+                              <div className="bg-gray-100 p-4 rounded-lg">
+                                <h3 className="text-lg font-semibold mb-2">Detail Pemesanan</h3>
+                                <p><span className="font-medium">Status:</span> <span className={`font-bold ${selectedBooking.status === 'confirmed' ? 'text-green-600' : 'text-red-600'}`}>{selectedBooking.status}</span></p>
+                                <p><span className="font-medium">Total Harga:</span> Rp {selectedBooking.total_price.toLocaleString()}</p>
+                              </div>
                               {selectedBooking.proof_of_payment_url && (
-                                <div>
-                                  <p><strong>Bukti Pembayaran:</strong></p>
+                                <div className="bg-gray-100 p-4 rounded-lg">
+                                  <h3 className="text-lg font-semibold mb-2">Bukti Pembayaran</h3>
                                   <img 
                                     src={selectedBooking.proof_of_payment_url} 
                                     alt="Bukti Pembayaran" 

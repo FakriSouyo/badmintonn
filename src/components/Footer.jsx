@@ -1,7 +1,39 @@
-import { Link } from 'react-router-dom';
+import React from 'react';
+import { Link as ScrollLink } from 'react-scroll';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
 import { FaFacebook, FaInstagram, FaTwitter, FaWhatsapp } from 'react-icons/fa';
 
 const Footer = () => {
+  const location = useLocation();
+
+  const NavLink = ({ to, children, onClick }) => {
+    const isScrollLink = ['home', 'about', 'schedule', 'contact'].includes(to);
+    
+    if (isScrollLink && location.pathname === '/') {
+      return (
+        <ScrollLink 
+          to={to} 
+          smooth={true} 
+          duration={500} 
+          className="text-sm font-medium hover:text-gray-600 cursor-pointer"
+          onClick={onClick}
+        >
+          {children}
+        </ScrollLink>
+      );
+    } else {
+      return (
+        <RouterLink 
+          to={`/${to}`} 
+          className="text-sm font-medium hover:text-gray-600"
+          onClick={onClick}
+        >
+          {children}
+        </RouterLink>
+      );
+    }
+  };
+  
   return (
     <footer className="bg-black text-white p-6 md:py-12 w-full">
       <div className="container max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 text-sm">
@@ -11,10 +43,10 @@ const Footer = () => {
         </div>
         <div className="grid gap-2">
           <h3 className="font-semibold text-lg mb-2">Tautan Cepat</h3>
-          <Link to="/" className="hover:text-gray-300">Beranda</Link>
-          <Link to="/about" className="hover:text-gray-300">Tentang Kami</Link>
-          <Link to="/schedule" className="hover:text-gray-300">Jadwal</Link>
-          <Link to="/contact" className="hover:text-gray-300">Kontak</Link>
+          <NavLink to="/" className="hover:text-gray-300">Beranda</NavLink>
+          <NavLink to="about" className="hover:text-gray-300">Tentang Kami</NavLink>
+          <NavLink to="schedule" className="hover:text-gray-300">Jadwal</NavLink>
+          <NavLink to="contact" className="hover:text-gray-300">Kontak</NavLink>
         </div>
         <div className="grid gap-2">
           <h3 className="font-semibold text-lg mb-2">Fasilitas</h3>
@@ -25,7 +57,7 @@ const Footer = () => {
         </div>
         <div className="grid gap-2">
           <h3 className="font-semibold text-lg mb-2">Hubungi Kami</h3>
-          <p>Jl. Contoh No. 123, Kota, Provinsi</p>
+          <p>Jl. Bibis Raya Kembaran RT 07, Kasih, Tamantirto, Kec. Kasihan, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55184</p>
           <p>Telp: (021) 1234-5678</p>
           <p>Email: info@gornandy.com</p>
           <div className="flex space-x-4 mt-2">

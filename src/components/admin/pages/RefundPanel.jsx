@@ -102,22 +102,31 @@ export const RefundPanel = () => {
           <FiInfo />
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Detail Refund</DialogTitle>
+          <DialogTitle className="text-2xl font-bold mb-4">Detail Refund</DialogTitle>
         </DialogHeader>
-        <div className="mt-4 space-y-2">
-          <p><strong>ID Refund:</strong> {refund.id}</p>
-          <p><strong>Tanggal Pengajuan:</strong> {new Date(refund.created_at).toLocaleString()}</p>
-          <p><strong>Pengguna:</strong> {refund.bookings?.users?.email}</p>
-          <p><strong>Lapangan:</strong> {refund.bookings?.courts?.name}</p>
-          <p><strong>Tanggal Booking:</strong> {new Date(refund.bookings?.booking_date).toLocaleDateString()}</p>
-          <p><strong>Waktu Booking:</strong> {refund.bookings?.start_time} - {refund.bookings?.end_time}</p>
-          <p><strong>Jumlah Refund:</strong> Rp {refund.amount.toLocaleString()}</p>
-          <p><strong>Metode Refund:</strong> {refund.refund_method}</p>
-          {refund.e_wallet_type && <p><strong>Tipe E-Wallet:</strong> {refund.e_wallet_type}</p>}
-          <p><strong>Nomor Akun:</strong> {refund.account_number}</p>
-          <p><strong>Status:</strong> {refund.status}</p>
+        <div className="mt-4 space-y-4">
+          <div className="bg-gray-100 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-2">Informasi Umum</h3>
+            <p><span className="font-medium">ID Refund:</span> {refund.id}</p>
+            <p><span className="font-medium">Tanggal Pengajuan:</span> {new Date(refund.created_at).toLocaleString()}</p>
+            <p><span className="font-medium">Status:</span> <span className={`font-bold ${refund.status === 'completed' ? 'text-green-600' : refund.status === 'rejected' ? 'text-red-600' : 'text-yellow-600'}`}>{refund.status}</span></p>
+          </div>
+          <div className="bg-gray-100 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-2">Detail Booking</h3>
+            <p><span className="font-medium">Pengguna:</span> {refund.bookings?.users?.email}</p>
+            <p><span className="font-medium">Lapangan:</span> {refund.bookings?.courts?.name}</p>
+            <p><span className="font-medium">Tanggal Booking:</span> {new Date(refund.bookings?.booking_date).toLocaleDateString()}</p>
+            <p><span className="font-medium">Waktu Booking:</span> {refund.bookings?.start_time} - {refund.bookings?.end_time}</p>
+          </div>
+          <div className="bg-gray-100 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold mb-2">Detail Refund</h3>
+            <p><span className="font-medium">Jumlah Refund:</span> <span className="text-lg font-bold text-green-600">Rp {refund.amount.toLocaleString()}</span></p>
+            <p><span className="font-medium">Metode Refund:</span> {refund.refund_method}</p>
+            {refund.e_wallet_type && <p><span className="font-medium">Tipe E-Wallet:</span> {refund.e_wallet_type}</p>}
+            <p><span className="font-medium">Nomor Akun:</span> {refund.account_number}</p>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

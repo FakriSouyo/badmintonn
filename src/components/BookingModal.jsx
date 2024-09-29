@@ -7,7 +7,7 @@ import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import { format, isBefore, startOfToday, parseISO, addHours } from 'date-fns';
+import { format, isBefore, startOfToday, parseISO, addHours, isSameDay } from 'date-fns';
 import toast from 'react-hot-toast';
 import Payment from './Payment';
 
@@ -22,6 +22,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
   const [totalPrice, setTotalPrice] = useState(0);
   const [currentStep, setCurrentStep] = useState('booking');
   const [bookingData, setBookingData] = useState(null);
+  const [bookedSlots, setBookedSlots] = useState([]);
 
   useEffect(() => {
     if (isOpen) {
@@ -37,6 +38,12 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
       setEndTime(format(addHours(parseISO(`2000-01-01T${initialBookingData.startTime}`), 1), 'HH:mm'));
     }
   }, [initialBookingData]);
+
+  useEffect(() => {
+    if (selectedCourt && selectedDate) {
+      fetchBookedSlots();
+    }
+  }, [selectedCourt, selectedDate]);
 
   useEffect(() => {
     if (selectedCourt && startTime && endTime) {
@@ -59,35 +66,47 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
     }
   };
 
+  const fetchBookedSlots = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('schedules')
+        .select('*')
+        .eq('court_id', selectedCourt)
+        .eq('date', format(selectedDate, 'yyyy-MM-dd'))
+        .in('status', ['booked', 'confirmed', 'maintenance', 'holiday']);
+
+      if (error) throw error;
+      setBookedSlots(data || []);
+    } catch (error) {
+      console.error('Error fetching booked slots:', error);
+      toast.error('Failed to load booked slots');
+    }
+  };
+
   const handleBooking = async () => {
     if (!selectedCourt || !selectedDate || !startTime || !endTime) {
-      toast.error('Please fill in all fields');
+      toast.error('Silakan isi semua kolom');
       return;
     }
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('bookings')
-        .insert({
-          user_id: user.id,
-          court_id: selectedCourt,
-          booking_date: format(selectedDate, 'yyyy-MM-dd'),
-          start_time: startTime,
-          end_time: endTime,
-          total_price: totalPrice,
-          status: 'pending'
-        })
-        .select()
-        .single();
+      // Hanya menyimpan data pemesanan sementara, belum mengirim ke database
+      const tempBookingData = {
+        user_id: user.id,
+        court_id: selectedCourt,
+        booking_date: format(selectedDate, 'yyyy-MM-dd'),
+        start_time: startTime,
+        end_time: endTime,
+        total_price: totalPrice,
+        status: 'pending'
+      };
 
-      if (error) throw error;
-
-      setBookingData(data);
+      setBookingData(tempBookingData);
       setCurrentStep('payment');
     } catch (error) {
-      console.error('Booking error:', error);
-      toast.error('Failed to create booking');
+      console.error('Kesalahan pemesanan:', error);
+      toast.error('Gagal membuat pemesanan');
     } finally {
       setLoading(false);
     }
@@ -107,6 +126,33 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
     const hour = i + 6; // Start from 6 AM
     return `${hour.toString().padStart(2, '0')}:00`;
   });
+
+  const isSlotBooked = (time) => {
+    return bookedSlots.some(slot => 
+      (parseISO(`2000-01-01T${slot.start_time}`) <= parseISO(`2000-01-01T${time}`) &&
+       parseISO(`2000-01-01T${time}`) < parseISO(`2000-01-01T${slot.end_time}`))
+    );
+  };
+
+  const isOverlappingBooking = (start, end) => {
+    return bookedSlots.some(slot => 
+      (parseISO(`2000-01-01T${start}`) < parseISO(`2000-01-01T${slot.end_time}`) &&
+       parseISO(`2000-01-01T${end}`) > parseISO(`2000-01-01T${slot.start_time}`))
+    );
+  };
+
+  const handleStartTimeChange = (time) => {
+    setStartTime(time);
+    setEndTime(null); // Reset end time when start time changes
+  };
+
+  const handleEndTimeChange = (time) => {
+    if (startTime && !isOverlappingBooking(startTime, time)) {
+      setEndTime(time);
+    } else {
+      toast.error('Selected time slot overlaps with an existing booking');
+    }
+  };
 
   const handleClose = () => {
     setCurrentStep('booking');
@@ -163,7 +209,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Pilih Tanggal
+                    Pilih Tanggal
                   </label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -187,13 +233,17 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Mulai Waktu
                   </label>
-                  <Select onValueChange={setStartTime} value={startTime}>
+                  <Select onValueChange={handleStartTimeChange} value={startTime}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select start time" />
                     </SelectTrigger>
                     <SelectContent>
                       {timeSlots.slice(0, -1).map((time) => (
-                        <SelectItem key={time} value={time}>
+                        <SelectItem 
+                          key={time} 
+                          value={time}
+                          disabled={isSlotBooked(time)}
+                        >
                           {time}
                         </SelectItem>
                       ))}
@@ -204,13 +254,17 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Selesai Waktu
                   </label>
-                  <Select onValueChange={setEndTime} value={endTime}>
+                  <Select onValueChange={handleEndTimeChange} value={endTime}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select end time" />
                     </SelectTrigger>
                     <SelectContent>
                       {timeSlots.slice(1).map((time) => (
-                        <SelectItem key={time} value={time} disabled={startTime && time <= startTime}>
+                        <SelectItem 
+                          key={time} 
+                          value={time} 
+                          disabled={!startTime || time <= startTime || isOverlappingBooking(startTime, time)}
+                        >
                           {time}
                         </SelectItem>
                       ))}
@@ -227,7 +281,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
                   className="w-full"
                   disabled={loading || !selectedCourt || !selectedDate || !startTime || !endTime}
                 >
-                    {loading ? 'Memproses...' : 'Lanjutkan ke Pembayaran'}
+                  {loading ? 'Memproses...' : 'Lanjutkan ke Pembayaran'}
                 </Button>
               </div>
             </motion.div>

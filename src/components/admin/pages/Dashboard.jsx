@@ -1,29 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/services/supabaseClient';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { FiUsers, FiCalendar, FiDollarSign } from 'react-icons/fi';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { Bar } from 'react-chartjs-2';
 
-const CustomXAxis = ({ ...props }) => (
-  <XAxis
-    stroke="#888888"
-    fontSize={12}
-    tickLine={false}
-    axisLine={false}
-    {...props}
-  />
-);
-
-const CustomYAxis = ({ tickFormatter, ...props }) => (
-  <YAxis
-    tickFormatter={tickFormatter || (value => `Rp${value}`)}
-    stroke="#888888"
-    fontSize={12}
-    tickLine={false}
-    axisLine={false}
-    {...props}
-  />
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -111,6 +93,57 @@ export const Dashboard = () => {
     }
   };
 
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      title: {
+        display: true,
+        text: 'Pendapatan Harian',
+      },
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Tanggal',
+        },
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Pendapatan (Rp)',
+        },
+        ticks: {
+          callback: (value) => `Rp${value.toLocaleString()}`,
+        },
+      },
+    },
+  };
+
+  const chartData = {
+    labels: dailyRevenue.map(item => item.name),
+    datasets: [
+      {
+        data: dailyRevenue.map(item => item.total),
+        backgroundColor: (context) => {
+          const ctx = context.chart.ctx;
+          const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+          gradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
+          gradient.addColorStop(1, 'rgba(0, 0, 0, 0.1)');
+          return gradient;
+        },
+        borderColor: 'rgba(0, 0, 0, 1)',
+        borderWidth: 1,
+        borderRadius: 4,
+        barPercentage: 0.5,
+      },
+    ],
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -150,14 +183,10 @@ export const Dashboard = () => {
         <CardHeader>
           <CardTitle>Pendapatan Harian</CardTitle>
         </CardHeader>
-        <CardContent className="pl-2">
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={dailyRevenue}>
-              <CustomXAxis dataKey="name" />
-              <CustomYAxis />
-              <Bar dataKey="total" fill="#adfa1d" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <CardContent>
+          <div style={{ height: '350px' }}>
+            <Bar options={chartOptions} data={chartData} />
+          </div>
         </CardContent>
       </Card>
 
