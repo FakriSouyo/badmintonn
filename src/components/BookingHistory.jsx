@@ -7,6 +7,8 @@ import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import Refund from './Refund';
 import { differenceInSeconds, parseISO, format } from 'date-fns';
+import InvoiceDownload from './InvoiceDownload';
+
 
 const BookingHistory = ({ isOpen, onClose }) => {
   const { user } = useAuth();
@@ -253,6 +255,9 @@ const BookingActions = ({ booking, onCancel, onRefundClick }) => (
       >
         {booking.refund_status ? 'Refund Diajukan' : 'Ajukan Refund'}
       </Button>
+    )}
+    {booking.status === 'confirmed' && (
+      <InvoiceDownload booking={booking} />
     )}
   </div>
 );
