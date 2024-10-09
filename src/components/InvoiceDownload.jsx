@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { PDFDownloadLink, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { PDFDownloadLink, Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import { Button } from './ui/button';
 import { FiDownload } from 'react-icons/fi';
 import { supabase } from '../services/supabaseClient';
+
+// Impor gambar stempel
+import stempelImage from '../../src/assets/stempel.png';
 
 // Definisikan styles untuk PDF
 const styles = StyleSheet.create({
@@ -18,7 +21,14 @@ const styles = StyleSheet.create({
   tableHeader: { backgroundColor: '#edf2f7', fontWeight: 'bold' },
   tableCol: { width: '25%', borderStyle: 'solid', borderWidth: 1, borderLeftWidth: 0, borderTopWidth: 0 },
   tableCell: { margin: 'auto', marginTop: 5, marginBottom: 5, fontSize: 10 },
-  footer: { position: 'absolute', bottom: 30, left: 30, right: 30, textAlign: 'center', color: '#a0aec0', fontSize: 10 }
+  footer: { position: 'absolute', bottom: 30, left: 30, right: 30, textAlign: 'center', color: '#a0aec0', fontSize: 10 },
+  stamp: { 
+    position: 'absolute', 
+    bottom: 50, // Ubah dari 30 menjadi 50 untuk menggeser ke atas
+    right: 30, 
+    width: 120, // Ubah dari 100 menjadi 120 untuk membesarkan
+    height: 120, // Ubah dari 100 menjadi 120 untuk membesarkan
+  },
 });
 
 // Fungsi untuk menghitung durasi dalam jam
@@ -84,6 +94,8 @@ const InvoicePDF = ({ booking, profile }) => {
         </View>
         
         <Text style={styles.footer}>Terima kasih telah memilih layanan kami. Selamat bermain!</Text>
+        
+        <Image style={styles.stamp} src={stempelImage} />
       </Page>
     </Document>
   );
@@ -123,12 +135,13 @@ const InvoiceDownload = ({ booking }) => {
       fileName={`invoice_booking_${booking.orderNumber}.pdf`}
     >
       {({ blob, url, loading, error }) => (
-        <Button
-          className="bg-green-500 text-white hover:bg-green-600 transition-colors duration-300 flex items-center justify-center px-4 py-2 rounded-md shadow-md"
-        >
-          Unduh Riwayat Pemesanan
-          <FiDownload className="ml-2" />
-        </Button>
+       <Button
+       disabled={loading}
+       className="bg-green-50 text-green-600 hover:bg-green-100 border-green-200"
+     >
+       {loading ? 'Loading document...' : 'Unduh Invoice'}
+       <FiDownload className="ml-2" />
+     </Button>
       )}
     </PDFDownloadLink>
   );

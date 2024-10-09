@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX } from 'react-icons/fi';
 import { supabase } from '../services/supabaseClient';
@@ -10,18 +10,25 @@ import { differenceInSeconds, parseISO, format } from 'date-fns';
 import InvoiceDownload from './InvoiceDownload';
 
 
-const BookingHistory = ({ isOpen, onClose }) => {
+const BookingHistory = ({ isOpen, onClose, selectedBookingId }) => {
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const bookingRefs = useRef({});
 
   useEffect(() => {
     if (user && isOpen) {
       fetchBookings();
     }
   }, [user, isOpen]);
+
+  useEffect(() => {
+    if (selectedBookingId && bookingRefs.current[selectedBookingId]) {
+      bookingRefs.current[selectedBookingId].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [selectedBookingId, bookings]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -161,13 +168,18 @@ const BookingHistory = ({ isOpen, onClose }) => {
             ) : (
               <div className="space-y-8">
                 {bookings.map((booking) => (
-                  <BookingCard 
+                  <div
                     key={booking.id}
-                    booking={booking}
-                    onCancel={cancelBooking}
-                    onRefundClick={handleRefundClick}
-                    getStatusColor={getStatusColor}
-                  />
+                    ref={(el) => (bookingRefs.current[booking.id] = el)}
+                  >
+                    <BookingCard 
+                      booking={booking}
+                      onCancel={cancelBooking}
+                      onRefundClick={handleRefundClick}
+                      getStatusColor={getStatusColor}
+                      isSelected={booking.id === selectedBookingId}
+                    />
+                  </div>
                 ))}
               </div>
             )}
@@ -187,11 +199,13 @@ const BookingHistory = ({ isOpen, onClose }) => {
   );
 };
 
-const BookingCard = ({ booking, onCancel, onRefundClick, getStatusColor }) => (
+const BookingCard = ({ booking, onCancel, onRefundClick, getStatusColor, isSelected }) => (
   <motion.div
     initial={{ opacity: 1 }}
     exit={{ opacity: 0 }}
-    className="bg-white border border-gray-200 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow"
+    className={`bg-white border border-gray-200 rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow ${
+      isSelected ? 'ring-2 ring-black' : ''
+    }`}
   >
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <BookingDetails booking={booking} />
