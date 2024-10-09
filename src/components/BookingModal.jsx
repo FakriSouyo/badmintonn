@@ -184,7 +184,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-800">Book a Court</h2>
+                <h2 className="text-2xl font-bold text-gray-800">Pesan Lapangan</h2>
                 <button onClick={handleClose} className="text-gray-500 hover:text-gray-700">
                   <FiX size={24} />
                 </button>
@@ -201,7 +201,7 @@ const BookingModal = ({ isOpen, onClose, initialBookingData }) => {
                     <SelectContent>
                       {courts.map((court) => (
                         <SelectItem key={court.id} value={court.id}>
-                          {court.name} - Rp {formatPrice(court.hourly_rate)}/hour
+                          {court.name} - Rp {formatPrice(court.hourly_rate)}/Jam
                         </SelectItem>
                       ))}
                     </SelectContent>
