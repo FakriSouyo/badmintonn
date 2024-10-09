@@ -206,7 +206,7 @@ const AdminSchedule = () => {
     if (!isBulkModeActive) return;
 
     const slotKey = `${date}-${time}`;
-    const status = getSlotStatus(courtId, date, time);
+    const { status } = getSlotStatus(courtId, date, time);
 
     if (status === 'available') {
       setSelectedSlots(prev => {
@@ -363,9 +363,9 @@ const AdminSchedule = () => {
                     <tr key={time} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                       <td className="p-3 font-medium text-gray-800">{time}</td>
                       {days.map(day => {
-                        const status = getSlotStatus(selectedCourt, day.date, time);
+                        const { status, userName } = getSlotStatus(selectedCourt, day.date, time);
                         const isSelected = !!selectedSlots[`${day.date}-${time}`];
-                        const isAvailable = status.status === 'available';
+                        const isAvailable = status === 'available';
                         return (
                           <td key={`${day.name}-${time}`} className="p-2">
                             {isBulkModeActive ? (
@@ -377,34 +377,37 @@ const AdminSchedule = () => {
                               />
                             ) : (
                               <Select
-                                value={status.status}
+                                value={status}
                                 onValueChange={(value) => updateScheduleStatus(selectedCourt, day.date, time, value)}
                               >
                                 <SelectTrigger className={`w-full text-xs ${
-                                  status.status === 'booked' ? 'bg-red-500 text-white' : 
-                                  status.status === 'confirmed' ? 'bg-green-500 text-white' :
-                                  status.status === 'maintenance' ? 'bg-yellow-500 text-white' :
-                                  status.status === 'holiday' ? 'bg-blue-500 text-white' :
+                                  status === 'booked' ? 'bg-yellow-500 text-white' : 
+                                  status === 'confirmed' ? 'bg-green-500 text-white' :
+                                  status === 'maintenance' ? 'bg-red-500 text-white' :
+                                  status === 'holiday' ? 'bg-blue-500 text-white' :
                                   'bg-gray-100 text-gray-800'
                                 }`}>
                                   <SelectValue>
-                                    {status.status === 'booked' || status.status === 'confirmed' ? 
-                                      (status.userName ? 
+                                    {status === 'booked' || status === 'confirmed' ? 
+                                      (userName ? 
                                         <TooltipProvider>
                                           <Tooltip>
                                             <TooltipTrigger asChild>
                                               <span className="truncate block">
-                                                {status.userName.split(' ')[0]}
+                                                {userName.split(' ')[0]}
                                               </span>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                              <p>{status.userName}</p>
+                                              <p>{userName}</p>
                                             </TooltipContent>
                                           </Tooltip>
                                         </TooltipProvider>
                                         : 'Dipesan'
                                       ) : 
-                                      status.status.charAt(0).toUpperCase() + status.status.slice(1)
+                                      status === 'maintenance' ? 'Proses' :
+                                      status === 'holiday' ? 'Libur' :
+                                      status === 'available' ? 'Tersedia' :
+                                      status.charAt(0).toUpperCase() + status.slice(1)
                                     }
                                   </SelectValue>
                                 </SelectTrigger>
