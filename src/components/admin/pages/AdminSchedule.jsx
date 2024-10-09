@@ -8,6 +8,7 @@ import { format, addDays, parseISO, addHours, isSameHour } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const AdminSchedule = () => {
   const { user } = useAuth();
@@ -101,15 +102,21 @@ const AdminSchedule = () => {
       const endDate = format(addDays(today, 6), 'yyyy-MM-dd');
       const { data, error } = await supabase
         .from('schedules')
-        .select('*')
+        .select(`
+          *,
+          users (
+            email,
+            full_name
+          )
+        `)
         .gte('date', startDate)
         .lte('date', endDate);
       if (error) throw error;
-      console.log('Schedules fetched:', data);
+      console.log('Jadwal diambil:', data);
       setSchedules(data || []);
     } catch (error) {
-      console.error('Error fetching schedules:', error);
-      throw new Error('Failed to fetch schedules data');
+      console.error('Kesalahan saat mengambil jadwal:', error);
+      throw new Error('Gagal mengambil data jadwal');
     }
   };
 
@@ -122,13 +129,12 @@ const AdminSchedule = () => {
       isSameHour(slotDateTime, parseISO(`${schedule.date}T${schedule.start_time}`))
     );
 
-    if (schedule) {
-      if (schedule.status === 'booked' || schedule.status === 'confirmed') {
-        return { status: schedule.status, fullName: schedule.full_name };
-      }
-      return { status: schedule.status };
-    }
-    return { status: 'available' };
+    if (!schedule) return { status: 'available', userName: null };
+    
+    return {
+      status: schedule.status,
+      userName: schedule.users?.full_name || schedule.users?.email || null
+    };
   }, [schedules]);
 
   const updateScheduleStatus = async (courtId, date, time, newStatus) => {
@@ -357,9 +363,9 @@ const AdminSchedule = () => {
                     <tr key={time} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                       <td className="p-3 font-medium text-gray-800">{time}</td>
                       {days.map(day => {
-                        const statusInfo = getSlotStatus(selectedCourt, day.date, time);
+                        const status = getSlotStatus(selectedCourt, day.date, time);
                         const isSelected = !!selectedSlots[`${day.date}-${time}`];
-                        const isAvailable = statusInfo.status === 'available';
+                        const isAvailable = status.status === 'available';
                         return (
                           <td key={`${day.name}-${time}`} className="p-2">
                             {isBulkModeActive ? (
@@ -371,19 +377,35 @@ const AdminSchedule = () => {
                               />
                             ) : (
                               <Select
-                                value={statusInfo.status}
+                                value={status.status}
                                 onValueChange={(value) => updateScheduleStatus(selectedCourt, day.date, time, value)}
                               >
                                 <SelectTrigger className={`w-full text-xs ${
-                                  statusInfo.status === 'booked' || statusInfo.status === 'confirmed' ? 'bg-yellow-500 text-white' : 
-                                  statusInfo.status === 'maintenance' ? 'bg-red-500 text-white' :
-                                  statusInfo.status === 'holiday' ? 'bg-blue-500 text-white' :
+                                  status.status === 'booked' ? 'bg-red-500 text-white' : 
+                                  status.status === 'confirmed' ? 'bg-green-500 text-white' :
+                                  status.status === 'maintenance' ? 'bg-yellow-500 text-white' :
+                                  status.status === 'holiday' ? 'bg-blue-500 text-white' :
                                   'bg-gray-100 text-gray-800'
                                 }`}>
                                   <SelectValue>
-                                    {statusInfo.status === 'booked' || statusInfo.status === 'confirmed' 
-                                      ? statusInfo.fullName || 'Dipesan'
-                                      : statusInfo.status.charAt(0).toUpperCase() + statusInfo.status.slice(1)}
+                                    {status.status === 'booked' || status.status === 'confirmed' ? 
+                                      (status.userName ? 
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <span className="truncate block">
+                                                {status.userName.split(' ')[0]}
+                                              </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p>{status.userName}</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                        : 'Dipesan'
+                                      ) : 
+                                      status.status.charAt(0).toUpperCase() + status.status.slice(1)
+                                    }
                                   </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>

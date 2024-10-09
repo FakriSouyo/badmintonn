@@ -89,7 +89,10 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
       const endDate = format(addDays(today, 6), 'yyyy-MM-dd');
       const { data, error } = await supabase
         .from('schedules')
-        .select('*')
+        .select(`
+          *,
+          user:users(full_name, email)
+        `)
         .gte('date', startDate)
         .lte('date', endDate);
       if (error) throw error;
@@ -121,23 +124,22 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
       isSameHour(slotDateTime, parseISO(`${schedule.date}T${schedule.start_time}`))
     );
 
-    if (schedule) {
-      if (schedule.status === 'booked' || schedule.status === 'confirmed') {
-        return { status: schedule.status, fullName: schedule.full_name };
-      }
-      return { status: schedule.status };
-    }
-    return { status: 'available' };
+    if (!schedule) return { status: 'available', userName: null };
+    
+    return {
+      status: schedule.status,
+      userName: schedule.user?.full_name || schedule.user?.email || null
+    };
   }, [schedules]);
 
   const handleSlotClick = async (courtId, day, startTime) => {
-    const statusInfo = getSlotStatus(courtId, day.date, startTime);
-    if (statusInfo.status !== 'available') {
+    const status = getSlotStatus(courtId, day.date, startTime);
+    if (status.status !== 'available') {
       let message;
-      switch (statusInfo.status) {
+      switch (status.status) {
         case 'booked':
         case 'confirmed':
-          message = 'Maaf, slot ini sudah dipesan oleh ' + (statusInfo.fullName || 'seseorang') + '.';
+          message = 'Maaf, slot ini sudah dipesan.';
           break;
         case 'holiday':
           message = 'Maaf, slot ini tidak tersedia karena hari libur.';
@@ -220,7 +222,7 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
                   openAuthModal={openAuthModal}
                   setSchedules={setSchedules}
                   isSlotBooked={isSlotBooked}
-                  getSlotStatus={getSlotStatus}  // Tambahkan ini
+                  getSlotStatus={getSlotStatus}
                   handleSlotClick={handleSlotClick}
                 />
               ))}

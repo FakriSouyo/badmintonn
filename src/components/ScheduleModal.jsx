@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const ScheduleModal = ({ court, days, user, isSlotBooked, getSlotStatus, handleSlotClick }) => {
   const timeSlots = [
@@ -24,11 +25,27 @@ const ScheduleModal = ({ court, days, user, isSlotBooked, getSlotStatus, handleS
     }
   };
 
-  const getSlotText = (statusInfo) => {
-    switch (statusInfo.status) {
+  const getSlotText = (status, userName) => {
+    switch (status) {
       case 'booked':
       case 'confirmed':
-        return statusInfo.fullName || 'Dipesan';
+        if (userName) {
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="truncate block">
+                    {userName.split(' ')[0]}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{userName}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        }
+        return 'Dipesan';
       case 'holiday':
         return 'Libur';
       case 'maintenance':
@@ -69,18 +86,18 @@ const ScheduleModal = ({ court, days, user, isSlotBooked, getSlotStatus, handleS
                 >
                   <td className="p-2 sm:p-3 font-medium sticky left-0 bg-inherit text-gray-800">{time}</td>
                   {days.map(day => {
-                    const statusInfo = getSlotStatus(court.id, day.date, time);
+                    const { status, userName } = getSlotStatus(court.id, day.date, time);
                     return (
                       <td key={`${day.name}-${time}`} className="p-1 sm:p-2">
                         <DialogClose asChild>
                           <Button 
                             variant="outline"
                             size="sm" 
-                            className={`w-full text-xs sm:text-sm ${getSlotColor(statusInfo.status)} border border-gray-300`}
+                            className={`w-full text-xs sm:text-sm ${getSlotColor(status)} border border-gray-300`}
                             onClick={() => handleSlotClick(court.id, day, time)}
-                            disabled={statusInfo.status !== 'available'}
+                            disabled={status !== 'available'}
                           >
-                            {getSlotText(statusInfo)}
+                            {getSlotText(status, userName)}
                           </Button>
                         </DialogClose>
                       </td>
