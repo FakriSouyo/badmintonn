@@ -3,7 +3,6 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from "@/components/ui/dialog";
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const ScheduleModal = ({ court, days, user, isSlotBooked, getSlotStatus, handleSlotClick }) => {
   const timeSlots = [
@@ -25,31 +24,17 @@ const ScheduleModal = ({ court, days, user, isSlotBooked, getSlotStatus, handleS
     }
   };
 
-  const getSlotText = (status) => {
-    switch (status.status) {
+  const getSlotText = (statusInfo) => {
+    switch (statusInfo.status) {
       case 'booked':
       case 'confirmed':
-        return status.name || 'Dipesan';
+        return statusInfo.fullName || 'Dipesan';
       case 'holiday':
         return 'Libur';
       case 'maintenance':
         return 'Proses';
       default:
         return 'Tersedia';
-    }
-  };
-
-  const getTooltipText = (status) => {
-    switch (status.status) {
-      case 'booked':
-      case 'confirmed':
-        return `Dipesan oleh ${status.name || 'Pengguna'}`;
-      case 'holiday':
-        return 'Hari Libur';
-      case 'maintenance':
-        return 'Sedang dalam pemeliharaan';
-      default:
-        return 'Slot tersedia untuk dipesan';
     }
   };
 
@@ -84,28 +69,19 @@ const ScheduleModal = ({ court, days, user, isSlotBooked, getSlotStatus, handleS
                 >
                   <td className="p-2 sm:p-3 font-medium sticky left-0 bg-inherit text-gray-800">{time}</td>
                   {days.map(day => {
-                    const status = getSlotStatus(court.id, day.date, time);
+                    const statusInfo = getSlotStatus(court.id, day.date, time);
                     return (
                       <td key={`${day.name}-${time}`} className="p-1 sm:p-2">
                         <DialogClose asChild>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="outline"
-                                  size="sm" 
-                                  className={`w-full text-xs sm:text-sm ${getSlotColor(status.status)} border border-gray-300`}
-                                  onClick={() => handleSlotClick(court.id, day, time)}
-                                  disabled={status.status !== 'available'}
-                                >
-                                  {getSlotText(status)}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>{getTooltipText(status)}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                          <Button 
+                            variant="outline"
+                            size="sm" 
+                            className={`w-full text-xs sm:text-sm ${getSlotColor(statusInfo.status)} border border-gray-300`}
+                            onClick={() => handleSlotClick(court.id, day, time)}
+                            disabled={statusInfo.status !== 'available'}
+                          >
+                            {getSlotText(statusInfo)}
+                          </Button>
                         </DialogClose>
                       </td>
                     );

@@ -89,7 +89,7 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
       const endDate = format(addDays(today, 6), 'yyyy-MM-dd');
       const { data, error } = await supabase
         .from('schedules')
-        .select('*, full_name')  // Tambahkan full_name di sini
+        .select('*')
         .gte('date', startDate)
         .lte('date', endDate);
       if (error) throw error;
@@ -122,8 +122,8 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
     );
 
     if (schedule) {
-      if (schedule.status === 'booked' && schedule.full_name) {
-        return { status: 'booked', name: schedule.full_name };
+      if (schedule.status === 'booked' || schedule.status === 'confirmed') {
+        return { status: schedule.status, fullName: schedule.full_name };
       }
       return { status: schedule.status };
     }
@@ -131,13 +131,13 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
   }, [schedules]);
 
   const handleSlotClick = async (courtId, day, startTime) => {
-    const status = getSlotStatus(courtId, day.date, startTime);
-    if (status !== 'available') {
+    const statusInfo = getSlotStatus(courtId, day.date, startTime);
+    if (statusInfo.status !== 'available') {
       let message;
-      switch (status.status) {
+      switch (statusInfo.status) {
         case 'booked':
         case 'confirmed':
-          message = 'Maaf, slot ini sudah dipesan.';
+          message = 'Maaf, slot ini sudah dipesan oleh ' + (statusInfo.fullName || 'seseorang') + '.';
           break;
         case 'holiday':
           message = 'Maaf, slot ini tidak tersedia karena hari libur.';
