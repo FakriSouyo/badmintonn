@@ -89,7 +89,7 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
       const endDate = format(addDays(today, 6), 'yyyy-MM-dd');
       const { data, error } = await supabase
         .from('schedules')
-        .select('*')
+        .select('*, full_name')  // Tambahkan full_name di sini
         .gte('date', startDate)
         .lte('date', endDate);
       if (error) throw error;
@@ -121,14 +121,20 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
       isSameHour(slotDateTime, parseISO(`${schedule.date}T${schedule.start_time}`))
     );
 
-    return schedule ? schedule.status : 'available';
+    if (schedule) {
+      if (schedule.status === 'booked' && schedule.full_name) {
+        return { status: 'booked', name: schedule.full_name };
+      }
+      return { status: schedule.status };
+    }
+    return { status: 'available' };
   }, [schedules]);
 
   const handleSlotClick = async (courtId, day, startTime) => {
     const status = getSlotStatus(courtId, day.date, startTime);
     if (status !== 'available') {
       let message;
-      switch (status) {
+      switch (status.status) {
         case 'booked':
         case 'confirmed':
           message = 'Maaf, slot ini sudah dipesan.';

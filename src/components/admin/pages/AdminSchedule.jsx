@@ -101,7 +101,7 @@ const AdminSchedule = () => {
       const endDate = format(addDays(today, 6), 'yyyy-MM-dd');
       const { data, error } = await supabase
         .from('schedules')
-        .select('*')
+        .select('*, full_name')  // Tambahkan full_name di sini
         .gte('date', startDate)
         .lte('date', endDate);
       if (error) throw error;
@@ -122,7 +122,13 @@ const AdminSchedule = () => {
       isSameHour(slotDateTime, parseISO(`${schedule.date}T${schedule.start_time}`))
     );
 
-    return schedule ? schedule.status : 'available';
+    if (schedule) {
+      if (schedule.status === 'booked' && schedule.full_name) {
+        return { status: 'booked', name: schedule.full_name };
+      }
+      return { status: schedule.status };
+    }
+    return { status: 'available' };
   }, [schedules]);
 
   const updateScheduleStatus = async (courtId, date, time, newStatus) => {
@@ -196,7 +202,7 @@ const AdminSchedule = () => {
     const slotKey = `${date}-${time}`;
     const status = getSlotStatus(courtId, date, time);
 
-    if (status === 'available') {
+    if (status.status === 'available') {
       setSelectedSlots(prev => {
         const newSlots = { ...prev };
         if (newSlots[slotKey]) {
@@ -353,7 +359,7 @@ const AdminSchedule = () => {
                       {days.map(day => {
                         const status = getSlotStatus(selectedCourt, day.date, time);
                         const isSelected = !!selectedSlots[`${day.date}-${time}`];
-                        const isAvailable = status === 'available';
+                        const isAvailable = status.status === 'available';
                         return (
                           <td key={`${day.name}-${time}`} className="p-2">
                             {isBulkModeActive ? (
@@ -365,17 +371,19 @@ const AdminSchedule = () => {
                               />
                             ) : (
                               <Select
-                                value={status}
+                                value={status.status}
                                 onValueChange={(value) => updateScheduleStatus(selectedCourt, day.date, time, value)}
                               >
                                 <SelectTrigger className={`w-full text-xs ${
-                                  status === 'booked' ? 'bg-yellow-500 text-white' : 
-                                  status === 'confirmed' ? 'bg-green-500 text-white' :
-                                  status === 'maintenance' ? 'bg-red-500 text-white' :
-                                  status === 'holiday' ? 'bg-blue-500 text-white' :
+                                  status.status === 'booked' ? 'bg-yellow-500 text-white' : 
+                                  status.status === 'confirmed' ? 'bg-green-500 text-white' :
+                                  status.status === 'maintenance' ? 'bg-red-500 text-white' :
+                                  status.status === 'holiday' ? 'bg-blue-500 text-white' :
                                   'bg-gray-100 text-gray-800'
                                 }`}>
-                                  <SelectValue />
+                                  <SelectValue>
+                                    {status.status === 'booked' ? (status.name || 'Dipesan') : status.status}
+                                  </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="available">Tersedia</SelectItem>
