@@ -14,9 +14,9 @@ const About = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-center mb-8 text-gray-900">Tentang Kami</h2>
           <div className="grid md:grid-cols-2 gap-8 items-center">
             <div className="space-y-6">
+              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl text-left mb-8 text-gray-900">Tentang Kami</h2>
               <p className="text-base sm:text-lg text-gray-600">
                 Kami berkomitmen untuk menyediakan fasilitas badminton terbaik bagi pemain dari semua tingkatan. Lapangan dan peralatan modern kami memastikan Anda mendapatkan pengalaman terbaik setiap kali bermain.
               </p>

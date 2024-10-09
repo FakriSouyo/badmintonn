@@ -5,6 +5,7 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import emailjs from 'emailjs-com';
 import { toast, Toaster } from 'react-hot-toast';
+import { MapPin } from 'lucide-react';
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -54,6 +55,12 @@ const Contact = () => {
     }
   };
 
+  const handleFindLocation = () => {
+    const address = "GOR Nandy";
+    const encodedAddress = encodeURIComponent(address);
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, '_blank');
+  };
+
   return (
     <section id="contact" className="min-h-screen flex items-center justify-center bg-gray-100">
       <Toaster position="top-center" reverseOrder={false} />
@@ -69,9 +76,10 @@ const Contact = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
+              className="flex flex-col"
             >
               <h3 className="text-2xl font-semibold mb-4 text-gray-800">Kirim Pesan</h3>
-              <form className="space-y-4" onSubmit={handleSubmit}>
+              <form className="space-y-4 flex-grow" onSubmit={handleSubmit}>
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Nama</label>
                   <Input id="name" placeholder="Nama Anda" className="bg-white" value={formData.name} onChange={handleChange} required />
@@ -91,16 +99,25 @@ const Contact = () => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="bg-white p-6 rounded-lg shadow-md"
+              className="flex flex-col"
             >
-              <h3 className="text-2xl font-semibold mb-4 text-gray-800">Informasi Kontak</h3>
-              <div className="space-y-2 text-gray-600">
-                <p><strong>Alamat:</strong> Jl. Bibis Raya Kembaran RT 07, Kasih, Tamantirto, Kec. Kasihan, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55184</p>
-                <p><strong>Telepon:</strong> (021) 1234-5678</p>
-                <p><strong>Email:</strong> info@gorbadmintonnandy.com</p>
-                <p><strong>Jam Operasional:</strong> Senin - Minggu: 06.00 - 22.00 WIB</p>
-                <p><strong>Harga Sewa:</strong><br />06.00 - 17.00: Rp 50.000/jam<br />17.00 - 22.00: Rp 55.000/jam</p>
+              <div className="bg-white p-6 rounded-lg shadow-md flex-grow">
+                <h3 className="text-2xl font-semibold mb-4 text-gray-800">Informasi Kontak</h3>
+                <div className="space-y-2 text-gray-600">
+                  <p><strong>Alamat:</strong> Jl. Bibis Raya Kembaran RT 07, Kasih, Tamantirto, Kec. Kasihan, Kabupaten Bantul, Daerah Istimewa Yogyakarta 55184</p>
+                  <p><strong>Telepon:</strong> (021) 1234-5678</p>
+                  <p><strong>Email:</strong> info@gorbadmintonnandy.com</p>
+                  <p><strong>Jam Operasional:</strong> Senin - Minggu: 06.00 - 22.00 WIB</p>
+                  
+                </div>
               </div>
+              <Button 
+                onClick={handleFindLocation} 
+                className="mt-4 bg-black text-white hover:bg-gray-800 flex items-center justify-center w-full"
+              >
+                <div className="mr-2" size={16} />
+                Temukan Lokasi
+              </Button>
             </motion.div>
           </div>
         </motion.div>
