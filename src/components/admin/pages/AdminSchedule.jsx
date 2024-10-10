@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Eye } from 'lucide-react'; // Tambahkan impor ini
+import BookingDetailModal from '../BookingDetailModal';
 
 const AdminSchedule = () => {
   const { user } = useAuth();
@@ -21,6 +23,8 @@ const AdminSchedule = () => {
   const [isBulkModeActive, setIsBulkModeActive] = useState(false);
   const [bulkUpdateStatus, setBulkUpdateStatus] = useState('holiday');
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [selectedBookingInfo, setSelectedBookingInfo] = useState(null);
+  const [selectedScheduleInfo, setSelectedScheduleInfo] = useState(null);
 
   const today = new Date();
   const days = [...Array(7)].map((_, index) => {
@@ -111,6 +115,7 @@ const AdminSchedule = () => {
         .select(`
           *,
           users (
+            id,
             email,
             full_name
           )
@@ -171,7 +176,6 @@ const AdminSchedule = () => {
     }
   };
 
-  // Modifikasi fungsi getSlotStatus untuk menangani status dengan lebih baik
   const getSlotStatus = useCallback((courtId, date, time) => {
     const slotDateTime = parseISO(`${date}T${time}`);
     
@@ -183,17 +187,20 @@ const AdminSchedule = () => {
 
     if (!schedule) return { status: 'available', userName: null };
     
-    // Pastikan status yang dikembalikan sesuai dengan yang diharapkan UI
     let displayStatus = schedule.status;
-    if (schedule.status === 'booked') {
-      displayStatus = 'booked';
+    if (schedule.status === 'booked' || schedule.status === 'confirmed') {
+      displayStatus = schedule.status;
     } else if (schedule.status === 'maintenance') {
       displayStatus = 'maintenance';
     }
     
+    const userName = schedule.users?.full_name || schedule.users?.email || schedule.user_name || null;
+    
+
+    
     return {
       status: displayStatus,
-      userName: schedule.user_name || null
+      userName: userName
     };
   }, [schedules]);
 
@@ -344,6 +351,53 @@ const AdminSchedule = () => {
     </Dialog>
   );
 
+  const handleBookingInfoClick = (courtId, date, time) => {
+    setSelectedScheduleInfo({ courtId, date, time });
+  };
+
+  const getSlotContent = (status, userName, courtId, date, time) => {
+    const slotText = getSlotText(status, userName);
+    const eyeIcon = (status === 'booked' || status === 'confirmed' || status === 'pending') && (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleBookingInfoClick(courtId, date, time);
+              }}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Lihat detail booking</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+
+    return { slotText, eyeIcon };
+  };
+
+  const getSlotText = (status, userName) => {
+    switch (status) {
+      case 'booked':
+      case 'confirmed':
+      case 'pending':
+        return userName ? userName.split(' ')[0] : 'Dipesan';
+      case 'holiday':
+        return 'Libur';
+      case 'maintenance':
+        return 'Proses';
+      default:
+        return 'Tersedia';
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-100">
@@ -426,6 +480,8 @@ const AdminSchedule = () => {
                         const { status, userName } = getSlotStatus(selectedCourt, day.date, time);
                         const isSelected = !!selectedSlots[`${day.date}-${time}`];
                         const isAvailable = status === 'available';
+                        const { slotText, eyeIcon } = getSlotContent(status, userName, selectedCourt, day.date, time);
+                        
                         return (
                           <td key={`${day.name}-${time}`} className="p-2">
                             {isBulkModeActive ? (
@@ -436,50 +492,34 @@ const AdminSchedule = () => {
                                 className={`mx-auto block ${!isAvailable ? 'opacity-50 cursor-not-allowed' : ''}`}
                               />
                             ) : (
-                              <Select
-                                value={status}
-                                onValueChange={(value) => updateScheduleStatus(selectedCourt, day.date, time, value)}
-                              >
-                                <SelectTrigger className={`w-full text-xs ${
-                                  status === 'booked' ? 'bg-yellow-500 text-white' : 
-                                  status === 'confirmed' ? 'bg-green-500 text-white' :
-                                  status === 'maintenance' ? 'bg-red-500 text-white' :
-                                  status === 'holiday' ? 'bg-blue-500 text-white' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  <SelectValue>
-                                    {status === 'booked' || status === 'confirmed' ? 
-                                      (userName ? 
-                                        <TooltipProvider>
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <span className="truncate block">
-                                                {userName.split(' ')[0]}
-                                              </span>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                              <p>{userName}</p>
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        </TooltipProvider>
-                                        : 'Dipesan'
-                                      ) : 
-                                      status === 'maintenance' ? 'Proses' :
-                                      status === 'holiday' ? 'Libur' :
-                                      status === 'available' ? 'Tersedia' :
-                                      status.charAt(0).toUpperCase() + status.slice(1)
-                                    }
-                                  </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="available">Tersedia</SelectItem>
-                                  <SelectItem value="booked">Dipesan</SelectItem>
-                                  <SelectItem value="confirmed">Terkonfirmasi</SelectItem>
-                                  <SelectItem value="pending">Tertunda</SelectItem>
-                                  <SelectItem value="maintenance">Proses</SelectItem>
-                                  <SelectItem value="holiday">Libur</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <div className="flex items-center justify-between">
+                                <Select
+                                  value={status}
+                                  onValueChange={(value) => updateScheduleStatus(selectedCourt, day.date, time, value)}
+                                >
+                                  <SelectTrigger className={`w-full text-xs ${
+                                    status === 'booked' ? 'bg-yellow-500 text-white' : 
+                                    status === 'confirmed' ? 'bg-green-500 text-white' :
+                                    status === 'maintenance' ? 'bg-red-500 text-white' :
+                                    status === 'holiday' ? 'bg-blue-500 text-white' :
+                                    status === 'pending' ? 'bg-orange-500 text-white' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    <SelectValue>
+                                      {slotText}
+                                    </SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="available">Tersedia</SelectItem>
+                                    <SelectItem value="booked">Dipesan</SelectItem>
+                                    <SelectItem value="confirmed">Terkonfirmasi</SelectItem>
+                                    <SelectItem value="pending">Tertunda</SelectItem>
+                                    <SelectItem value="maintenance">Proses</SelectItem>
+                                    <SelectItem value="holiday">Libur</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                {eyeIcon}
+                              </div>
                             )}
                           </td>
                         );
@@ -498,6 +538,11 @@ const AdminSchedule = () => {
             </div>
           )}
           <BulkUpdateModal />
+          <BookingDetailModal
+            isOpen={!!selectedScheduleInfo}
+            onClose={() => setSelectedScheduleInfo(null)}
+            scheduleInfo={selectedScheduleInfo}
+          />
         </motion.div>
       </div>
     </section>

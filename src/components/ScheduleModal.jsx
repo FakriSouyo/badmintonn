@@ -26,7 +26,7 @@ const ScheduleModal = ({ court, days, user, isSlotBooked, getSlotStatus, handleS
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{isCurrentUser ? 'Anda' : userName}</p>
+                  <p>{isCurrentUser ? 'Klik untuk melihat detail' : userName}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -40,6 +40,16 @@ const ScheduleModal = ({ court, days, user, isSlotBooked, getSlotStatus, handleS
       default:
         return 'Tersedia';
     }
+  };
+
+  const getSlotStyle = (status, isCurrentUserSlot) => {
+    if (status === 'maintenance') {
+      return 'bg-white text-gray-400 cursor-not-allowed';
+    }
+    if (isCurrentUserSlot) {
+      return 'text-white bg-black hover:bg-transparent';
+    }
+    return '';
   };
 
   return (
@@ -74,15 +84,17 @@ const ScheduleModal = ({ court, days, user, isSlotBooked, getSlotStatus, handleS
                   <td className="p-2 sm:p-3 font-medium sticky left-0 bg-inherit text-gray-800">{time}</td>
                   {days.map(day => {
                     const { status, userName } = getSlotStatus(court.id, day.date, time);
+                    const isCurrentUserSlot = user && (userName === user.full_name || userName === user.email);
+                    const slotStyle = getSlotStyle(status, isCurrentUserSlot);
                     return (
                       <td key={`${day.name}-${time}`} className="p-1 sm:p-2">
                         <DialogClose asChild>
                           <Button 
                             variant="outline"
                             size="sm" 
-                            className="w-full text-xs sm:text-sm border border-gray-300"
+                            className={`w-full text-xs sm:text-sm border border-gray-300 ${slotStyle}`}
                             onClick={() => handleSlotClick(court.id, day, time)}
-                            disabled={status !== 'available'}
+                            disabled={status === 'maintenance' || (status !== 'available' && !isCurrentUserSlot)}
                           >
                             {getSlotText(status, userName, user)}
                           </Button>

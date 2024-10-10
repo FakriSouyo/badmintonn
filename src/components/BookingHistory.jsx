@@ -52,6 +52,10 @@ const BookingHistory = ({ isOpen, onClose, selectedBookingId }) => {
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  const getSimplifiedId = (id) => {
+    return id ? id.slice(0, 4).toUpperCase() : '';
+  };
+
   const fetchBookings = async () => {
     if (!user) return;
     
@@ -69,15 +73,15 @@ const BookingHistory = ({ isOpen, onClose, selectedBookingId }) => {
 
       if (error) throw error;
       
-      const bookingsWithOrder = data.map((booking, index) => ({
+      const bookingsWithSimplifiedId = data.map((booking) => ({
         ...booking,
-        orderNumber: data.length - index,
+        simplifiedId: getSimplifiedId(booking.id),
         payment_status: booking.payment_status || 'pending',
         timeLeft: calculateTimeLeft(booking.created_at),
         refund_status: booking.refunds.length > 0 ? booking.refunds[0].status : null
       }));
       
-      setBookings(bookingsWithOrder);
+      setBookings(bookingsWithSimplifiedId);
     } catch (error) {
       console.error('Error fetching bookings:', error);
       toast.error('Gagal memuat riwayat pemesanan');
@@ -221,7 +225,7 @@ const BookingCard = ({ booking, onCancel, onRefundClick, getStatusColor, isSelec
 
 const BookingDetails = ({ booking }) => (
   <div className="space-y-2">
-    <h3 className="font-semibold text-xl mb-3">Pemesanan #{booking.orderNumber}</h3>
+    <h3 className="font-semibold text-xl mb-3">Pemesanan #{booking.simplifiedId}</h3>
     <p className="text-sm text-gray-500">{format(new Date(booking.created_at), 'dd MMMM yyyy, HH:mm')}</p>
     <p><span className="font-medium">Lapangan:</span> {booking.courts.name}</p>
     <p><span className="font-medium">Tanggal:</span> {format(new Date(booking.booking_date), 'dd MMMM yyyy')}</p>

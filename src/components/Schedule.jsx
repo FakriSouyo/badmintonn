@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { format, addDays, parseISO, addHours, isWithinInterval, isSameHour } from 'date-fns';
 import ScheduleModal from './ScheduleModal';
 import CourtCard from './CourtCard';
+import BookingDetailModalUser from './BookingDetailModalUser'; // Tambahkan import ini
 
 const Schedule = ({ onBookingInitiated, openAuthModal }) => {
   const { user } = useAuth();
@@ -14,6 +15,7 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedBookingInfo, setSelectedBookingInfo] = useState(null);
 
   const today = new Date();
   const days = [...Array(7)].map((_, index) => {
@@ -136,24 +138,14 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
   }, [schedules]);
 
   const handleSlotClick = async (courtId, day, startTime) => {
-    const status = getSlotStatus(courtId, day.date, startTime);
-    if (status.status !== 'available') {
-      let message;
-      switch (status.status) {
-        case 'booked':
-        case 'confirmed':
-          message = 'Maaf, slot ini sudah dipesan.';
-          break;
-        case 'holiday':
-          message = 'Maaf, slot ini tidak tersedia karena hari libur.';
-          break;
-        case 'maintenance':
-          message = 'Maaf, slot ini tidak tersedia karena sedang dalam pemeliharaan.';
-          break;
-        default:
-          message = 'Maaf, slot ini tidak tersedia.';
+    const { status, userName, bookingId } = getSlotStatus(courtId, day.date, startTime);
+    if (status === 'booked' || status === 'confirmed') {
+      if (user && (userName === user.full_name || userName === user.email)) {
+        // Jika slot dipesan oleh user yang sedang login
+        setSelectedBookingInfo({ courtId, date: day.date, time: startTime });
+      } else {
+        toast.error('Maaf, slot ini sudah dipesan.');
       }
-      toast.error(message);
       return;
     }
 
@@ -240,6 +232,12 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
           )}
         </motion.div>
       </div>
+      <BookingDetailModalUser
+        isOpen={!!selectedBookingInfo}
+        onClose={() => setSelectedBookingInfo(null)}
+        scheduleInfo={selectedBookingInfo}
+        user={user}
+      />
     </section>
   );
 };
