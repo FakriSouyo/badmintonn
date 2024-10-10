@@ -65,7 +65,6 @@ const AdminSchedule = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, handleScheduleChange)
       .subscribe();
 
-    // Tambahkan subscription untuk bookings
     const bookingSubscription = supabase
       .channel('public:bookings')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, handleBookingChange)
@@ -81,20 +80,15 @@ const AdminSchedule = () => {
     console.log('Real-time update received for bookings:', payload);
     if (payload.eventType === 'UPDATE') {
       const booking = payload.new;
-      
-      // Jika status booking berubah menjadi 'confirmed', perbarui jadwal terkait
-      if (booking.status === 'confirmed') {
-        await updateScheduleWithBooking(booking);
-      }
+      await updateScheduleWithBooking(booking);
     }
   };
 
   const handleScheduleChange = (payload) => {
     console.log('Real-time update received for schedules:', payload);
-    fetchSchedules(); // Refresh jadwal setiap kali ada perubahan pada tabel schedules
+    fetchSchedules();
   };
 
-  
   const fetchCourts = async () => {
     try {
       const { data, error } = await supabase.from('courts').select('*');
@@ -139,6 +133,21 @@ const AdminSchedule = () => {
       let currentTime = startTime;
 
       while (currentTime < endTime) {
+        let scheduleStatus;
+        let userName = null;
+
+        if (booking.payment_status === 'paid' && booking.status === 'confirmed') {
+          scheduleStatus = 'booked';
+          userName = booking.users?.full_name || booking.users?.email;
+        } else if (booking.payment_status === 'paid' && booking.status === 'pending') {
+          scheduleStatus = 'pending';
+          userName = booking.users?.full_name || booking.users?.email;
+        } else if (booking.status === 'cancelled' || booking.status === 'finished') {
+          scheduleStatus = 'available';
+        } else {
+          scheduleStatus = 'pending';
+        }
+
         const { error } = await supabase
           .from('schedules')
           .upsert({
@@ -146,16 +155,19 @@ const AdminSchedule = () => {
             date: format(currentTime, 'yyyy-MM-dd'),
             start_time: format(currentTime, 'HH:mm'),
             end_time: format(addHours(currentTime, 1), 'HH:mm'),
-            status: 'booked',
-            user_id: booking.user_id,
-            user_name: booking.user_name || booking.users?.full_name || booking.users?.email
+            status: scheduleStatus,
+            user_id: scheduleStatus === 'booked' || scheduleStatus === 'pending' ? booking.user_id : null,
+            user_name: userName
           }, { onConflict: ['court_id', 'date', 'start_time'] });
 
         if (error) throw error;
         currentTime = addHours(currentTime, 1);
       }
+
+      console.log('Jadwal berhasil diperbarui berdasarkan perubahan booking');
     } catch (error) {
       console.error('Error updating schedule with booking:', error);
+      toast.error('Gagal memperbarui jadwal berdasarkan perubahan booking');
     }
   };
 

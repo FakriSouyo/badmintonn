@@ -146,7 +146,7 @@ export const Bookings = () => {
             end_time: format(addHours(currentTime, 1), 'HH:mm'),
             status: scheduleStatus,
             user_id: scheduleStatus === 'booked' || scheduleStatus === 'pending' ? booking.user_id : null,
-            user_name: userName
+            full_name: userName
           }, { onConflict: ['court_id', 'date', 'start_time'] });
 
         if (error) throw error;
