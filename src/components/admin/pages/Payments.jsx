@@ -54,7 +54,8 @@ export const Payments = () => {
     } else {
       const updatedData = data.map(booking => ({
         ...booking,
-        payment_status: booking.payment_status || 'pending'
+        payment_status: booking.payment_status || 'pending',
+        status: booking.status || 'pending' // Pastikan status booking default adalah 'pending'
       }));
       setPayments(updatedData);
       setTotalPages(Math.ceil(count / paymentsPerPage));
@@ -88,26 +89,62 @@ export const Payments = () => {
       const { data, error } = await supabase
         .from('bookings')
         .update({ 
-          payment_status: newStatus
+          payment_status: newStatus,
+          // Status booking tetap 'pending' meskipun pembayaran 'paid'
+          status: 'pending'
         })
         .eq('id', id)
-        .select('*, users(id)')
+        .select('*, users(id, full_name, email)')
         .single();
 
       if (error) throw error;
 
-      // Jika pembayaran menjadi 'paid' dan status pemesanan sudah 'confirmed', buat notifikasi
-      if (newStatus === 'paid' && data.status === 'confirmed') {
-        const bookingCode = data.id.toString().padStart(4, '0');
-        const message = `Pembayaran untuk Pemesanan #${bookingCode} telah dikonfirmasi dan pemesanan siap digunakan.`;
-        await createNotification(data.users.id, data.id, message, 'payment');
+      // Jika pembayaran menjadi 'paid', update jadwal
+      if (newStatus === 'paid') {
+        await updateScheduleWithUserName(data);
       }
+
+      // Buat notifikasi
+      const bookingCode = data.id.toString().padStart(4, '0');
+      const message = `Pembayaran untuk Pemesanan #${bookingCode} telah dikonfirmasi. Silakan tunggu konfirmasi admin untuk status pemesanan.`;
+      await createNotification(data.users.id, data.id, message, 'payment');
 
       fetchPayments();
       toast.success(`Status pembayaran berhasil diubah menjadi ${newStatus}`);
     } catch (error) {
       console.error('Error updating payment status:', error);
       toast.error('Gagal mengubah status pembayaran');
+    }
+  };
+
+  const updateScheduleWithUserName = async (booking) => {
+    try {
+      const startTime = parseISO(`${booking.booking_date}T${booking.start_time}`);
+      const endTime = parseISO(`${booking.booking_date}T${booking.end_time}`);
+      let currentTime = startTime;
+
+      while (currentTime < endTime) {
+        const { error } = await supabase
+          .from('schedules')
+          .upsert({
+            court_id: booking.court_id,
+            date: format(currentTime, 'yyyy-MM-dd'),
+            start_time: format(currentTime, 'HH:mm'),
+            end_time: format(addHours(currentTime, 1), 'HH:mm'),
+            status: 'booked',
+            user_id: booking.user_id,
+            user_name: booking.users.full_name || booking.users.email
+          }, { onConflict: ['court_id', 'date', 'start_time'] });
+
+        if (error) throw error;
+
+        currentTime = addHours(currentTime, 1);
+      }
+
+      console.log('Jadwal berhasil diperbarui dengan nama pengguna');
+    } catch (error) {
+      console.error('Error updating schedule with user name:', error);
+      toast.error('Gagal memperbarui jadwal dengan nama pengguna');
     }
   };
 

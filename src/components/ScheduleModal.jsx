@@ -11,35 +11,22 @@ const ScheduleModal = ({ court, days, user, isSlotBooked, getSlotStatus, handleS
     '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'
   ];
 
-  const getSlotColor = (status) => {
-    switch (status) {
-      case 'booked':
-      case 'confirmed':
-        return 'bg-gray-800 text-white';
-      case 'holiday':
-        return 'bg-gray-600 text-white';
-      case 'maintenance':
-        return 'bg-gray-700 text-white';
-      default:
-        return 'bg-white text-gray-800 hover:bg-gray-200';
-    }
-  };
-
-  const getSlotText = (status, userName) => {
+  const getSlotText = (status, userName, currentUser) => {
     switch (status) {
       case 'booked':
       case 'confirmed':
         if (userName) {
+          const isCurrentUser = currentUser && (userName === currentUser.full_name || userName === currentUser.email);
           return (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="truncate block">
-                    {userName.split(' ')[0]}
+                    {isCurrentUser ? 'Anda' : userName.split(' ')[0]}
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{userName}</p>
+                  <p>{isCurrentUser ? 'Anda' : userName}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -93,18 +80,17 @@ const ScheduleModal = ({ court, days, user, isSlotBooked, getSlotStatus, handleS
                           <Button 
                             variant="outline"
                             size="sm" 
-                            className={`w-full text-xs sm:text-sm ${getSlotColor(status)} border border-gray-300`}
+                            className="w-full text-xs sm:text-sm border border-gray-300"
                             onClick={() => handleSlotClick(court.id, day, time)}
                             disabled={status !== 'available'}
                           >
-                            {getSlotText(status, userName)}
+                            {getSlotText(status, userName, user)}
                           </Button>
                         </DialogClose>
                       </td>
                     );
                   })}
-                </tr>
-              ))}
+                </tr>))}
             </tbody>
           </table>
         </div>

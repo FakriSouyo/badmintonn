@@ -59,28 +59,40 @@ export const Bookings = () => {
 
   const updateBookingStatus = async (id, newStatus) => {
     try {
+      const { data: currentBooking, error: fetchError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const updateData = { status: newStatus };
+      
+      // Jika status baru adalah 'confirmed', pastikan payment_status juga 'paid'
+      if (newStatus === 'confirmed' && currentBooking.payment_status !== 'paid') {
+        updateData.payment_status = 'paid';
+      }
+
       const { data, error } = await supabase
         .from('bookings')
-        .update({ status: newStatus })
+        .update(updateData)
         .eq('id', id)
-        .select('*, users(id), courts(name)')
+        .select('*, users(id, full_name, email), courts(name)')
         .single();
-  
+
       if (error) throw error;
-  
-      if (newStatus === 'confirmed') {
-        await updateAdminAndUserSchedule(data, newStatus);
-      } else {
-        await updateAdminAndUserSchedule(data, newStatus);
-      }
-  
+
+      // Update jadwal berdasarkan status baru
+      await updateScheduleBasedOnStatus(data, newStatus);
+
       let statusIndonesia = '';
       switch (newStatus) {
         case 'confirmed':
           statusIndonesia = 'dikonfirmasi';
           break;
         case 'pending':
-          statusIndonesia = 'ditunda';
+          statusIndonesia = 'tertunda';
           break;
         case 'cancelled':
           statusIndonesia = 'dibatalkan';
@@ -94,7 +106,7 @@ export const Bookings = () => {
       const bookingCode = data.id.toString().padStart(4, '0');
       const message = `Status Pemesanan #${bookingCode} telah ${statusIndonesia}.`;
       await createNotification(data.users.id, data.id, message, 'booking');
-  
+
       fetchBookings();
       toast.success(`Status pemesanan berhasil diubah menjadi ${statusIndonesia}`);
     } catch (error) {
@@ -103,14 +115,28 @@ export const Bookings = () => {
     }
   };
 
-  const updateAdminAndUserSchedule = async (booking, newStatus) => {
+  const updateScheduleBasedOnStatus = async (booking, newStatus) => {
     try {
       const startTime = parseISO(`${booking.booking_date}T${booking.start_time}`);
       const endTime = parseISO(`${booking.booking_date}T${booking.end_time}`);
       let currentTime = startTime;
 
       while (currentTime < endTime) {
-        const scheduleStatus = mapBookingStatusToScheduleStatus(newStatus);
+        let scheduleStatus;
+        let userName = null;
+
+        if (booking.payment_status === 'paid' && newStatus === 'confirmed') {
+          scheduleStatus = 'booked';
+          userName = booking.users.full_name || booking.users.email;
+        } else if (booking.payment_status === 'paid' && newStatus === 'pending') {
+          scheduleStatus = 'pending';
+          userName = booking.users.full_name || booking.users.email;
+        } else if (newStatus === 'cancelled' || newStatus === 'finished') {
+          scheduleStatus = 'available';
+        } else {
+          scheduleStatus = 'pending';
+        }
+
         const { error } = await supabase
           .from('schedules')
           .upsert({
@@ -119,7 +145,8 @@ export const Bookings = () => {
             start_time: format(currentTime, 'HH:mm'),
             end_time: format(addHours(currentTime, 1), 'HH:mm'),
             status: scheduleStatus,
-            user_id: newStatus === 'confirmed' ? booking.user_id : null
+            user_id: scheduleStatus === 'booked' || scheduleStatus === 'pending' ? booking.user_id : null,
+            user_name: userName
           }, { onConflict: ['court_id', 'date', 'start_time'] });
 
         if (error) throw error;
@@ -127,22 +154,10 @@ export const Bookings = () => {
         currentTime = addHours(currentTime, 1);
       }
 
-      console.log('Jadwal admin dan pengguna berhasil diperbarui');
+      console.log('Jadwal berhasil diperbarui berdasarkan status pemesanan');
     } catch (error) {
-      console.error('Error updating admin and user schedule:', error);
-      toast.error('Gagal memperbarui jadwal admin dan pengguna');
-    }
-  };
-
-  const mapBookingStatusToScheduleStatus = (bookingStatus) => {
-    switch (bookingStatus) {
-      case 'confirmed':
-        return 'booked';
-      case 'cancelled':
-      case 'finished':
-        return 'available';
-      default:
-        return 'pending';
+      console.error('Error updating schedule based on booking status:', error);
+      toast.error('Gagal memperbarui jadwal berdasarkan status pemesanan');
     }
   };
 
@@ -224,6 +239,37 @@ export const Bookings = () => {
         </Button>
       </div>
     );
+  };
+
+  const updateScheduleWithUserName = async (booking) => {
+    try {
+      const startTime = parseISO(`${booking.booking_date}T${booking.start_time}`);
+      const endTime = parseISO(`${booking.booking_date}T${booking.end_time}`);
+      let currentTime = startTime;
+
+      while (currentTime < endTime) {
+        const { error } = await supabase
+          .from('schedules')
+          .upsert({
+            court_id: booking.court_id,
+            date: format(currentTime, 'yyyy-MM-dd'),
+            start_time: format(currentTime, 'HH:mm'),
+            end_time: format(addHours(currentTime, 1), 'HH:mm'),
+            status: 'booked',
+            user_id: booking.user_id,
+            user_name: booking.users.full_name || booking.users.email
+          }, { onConflict: ['court_id', 'date', 'start_time'] });
+
+        if (error) throw error;
+
+        currentTime = addHours(currentTime, 1);
+      }
+
+      console.log('Jadwal berhasil diperbarui dengan nama pengguna');
+    } catch (error) {
+      console.error('Error updating schedule with user name:', error);
+      toast.error('Gagal memperbarui jadwal dengan nama pengguna');
+    }
   };
 
   return (

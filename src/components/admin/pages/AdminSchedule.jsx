@@ -65,24 +65,36 @@ const AdminSchedule = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'schedules' }, handleScheduleChange)
       .subscribe();
 
+    // Tambahkan subscription untuk bookings
+    const bookingSubscription = supabase
+      .channel('public:bookings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, handleBookingChange)
+      .subscribe();
+
     return () => {
       supabase.removeChannel(scheduleSubscription);
+      supabase.removeChannel(bookingSubscription);
     };
-  }, [fetchData]);
+  }, []);
 
-  const handleScheduleChange = (payload) => {
-    console.log('Real-time update received:', payload);
-    setSchedules(currentSchedules => {
-      const updatedSchedules = currentSchedules.map(s => 
-        s.id === payload.new.id ? { ...s, ...payload.new } : s
-      );
-      if (!updatedSchedules.some(s => s.id === payload.new.id)) {
-        updatedSchedules.push(payload.new);
+  const handleBookingChange = async (payload) => {
+    console.log('Real-time update received for bookings:', payload);
+    if (payload.eventType === 'UPDATE') {
+      const booking = payload.new;
+      
+      // Jika status booking berubah menjadi 'confirmed', perbarui jadwal terkait
+      if (booking.status === 'confirmed') {
+        await updateScheduleWithBooking(booking);
       }
-      return updatedSchedules;
-    });
+    }
   };
 
+  const handleScheduleChange = (payload) => {
+    console.log('Real-time update received for schedules:', payload);
+    fetchSchedules(); // Refresh jadwal setiap kali ada perubahan pada tabel schedules
+  };
+
+  
   const fetchCourts = async () => {
     try {
       const { data, error } = await supabase.from('courts').select('*');
@@ -116,10 +128,38 @@ const AdminSchedule = () => {
       setSchedules(data || []);
     } catch (error) {
       console.error('Kesalahan saat mengambil jadwal:', error);
-      throw new Error('Gagal mengambil data jadwal');
+      toast.error('Gagal mengambil data jadwal');
     }
   };
 
+  const updateScheduleWithBooking = async (booking) => {
+    try {
+      const startTime = parseISO(`${booking.booking_date}T${booking.start_time}`);
+      const endTime = parseISO(`${booking.booking_date}T${booking.end_time}`);
+      let currentTime = startTime;
+
+      while (currentTime < endTime) {
+        const { error } = await supabase
+          .from('schedules')
+          .upsert({
+            court_id: booking.court_id,
+            date: format(currentTime, 'yyyy-MM-dd'),
+            start_time: format(currentTime, 'HH:mm'),
+            end_time: format(addHours(currentTime, 1), 'HH:mm'),
+            status: 'booked',
+            user_id: booking.user_id,
+            user_name: booking.user_name || booking.users?.full_name || booking.users?.email
+          }, { onConflict: ['court_id', 'date', 'start_time'] });
+
+        if (error) throw error;
+        currentTime = addHours(currentTime, 1);
+      }
+    } catch (error) {
+      console.error('Error updating schedule with booking:', error);
+    }
+  };
+
+  // Modifikasi fungsi getSlotStatus untuk menangani status dengan lebih baik
   const getSlotStatus = useCallback((courtId, date, time) => {
     const slotDateTime = parseISO(`${date}T${time}`);
     
@@ -131,9 +171,17 @@ const AdminSchedule = () => {
 
     if (!schedule) return { status: 'available', userName: null };
     
+    // Pastikan status yang dikembalikan sesuai dengan yang diharapkan UI
+    let displayStatus = schedule.status;
+    if (schedule.status === 'booked') {
+      displayStatus = 'booked';
+    } else if (schedule.status === 'maintenance') {
+      displayStatus = 'maintenance';
+    }
+    
     return {
-      status: schedule.status,
-      userName: schedule.users?.full_name || schedule.users?.email || null
+      status: displayStatus,
+      userName: schedule.user_name || null
     };
   }, [schedules]);
 
@@ -415,6 +463,7 @@ const AdminSchedule = () => {
                                   <SelectItem value="available">Tersedia</SelectItem>
                                   <SelectItem value="booked">Dipesan</SelectItem>
                                   <SelectItem value="confirmed">Terkonfirmasi</SelectItem>
+                                  <SelectItem value="pending">Tertunda</SelectItem>
                                   <SelectItem value="maintenance">Proses</SelectItem>
                                   <SelectItem value="holiday">Libur</SelectItem>
                                 </SelectContent>

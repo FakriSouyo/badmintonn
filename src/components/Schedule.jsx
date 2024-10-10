@@ -89,7 +89,13 @@ const Schedule = ({ onBookingInitiated, openAuthModal }) => {
       const endDate = format(addDays(today, 6), 'yyyy-MM-dd');
       const { data, error } = await supabase
         .from('schedules')
-        .select('*')
+        .select(`
+          *,
+          user:users (
+            full_name,
+            email
+          )
+        `)
         .gte('date', startDate)
         .lte('date', endDate);
       if (error) throw error;
