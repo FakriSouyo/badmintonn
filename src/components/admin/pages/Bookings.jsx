@@ -42,7 +42,7 @@ export const Bookings = () => {
       .select(`
         *,
         courts (name),
-        users (email)
+        users (full_name)
       `, { count: 'exact' })
       .eq('payment_status', 'paid')
       .order('created_at', { ascending: false })
@@ -187,7 +187,7 @@ export const Bookings = () => {
       Tanggal: format(new Date(booking.booking_date), 'dd/MM/yyyy'),
       Waktu: `${booking.start_time} - ${booking.end_time}`,
       Lapangan: booking.courts.name,
-      Pengguna: booking.users.email,
+      Pengguna: booking.users.full_name,
       Status: booking.status,
       TotalHarga: booking.total_price
     })));
@@ -240,38 +240,7 @@ export const Bookings = () => {
       </div>
     );
   };
-
-  const updateScheduleWithUserName = async (booking) => {
-    try {
-      const startTime = parseISO(`${booking.booking_date}T${booking.start_time}`);
-      const endTime = parseISO(`${booking.booking_date}T${booking.end_time}`);
-      let currentTime = startTime;
-
-      while (currentTime < endTime) {
-        const { error } = await supabase
-          .from('schedules')
-          .upsert({
-            court_id: booking.court_id,
-            date: format(currentTime, 'yyyy-MM-dd'),
-            start_time: format(currentTime, 'HH:mm'),
-            end_time: format(addHours(currentTime, 1), 'HH:mm'),
-            status: 'booked',
-            user_id: booking.user_id,
-            user_name: booking.users.full_name || booking.users.email
-          }, { onConflict: ['court_id', 'date', 'start_time'] });
-
-        if (error) throw error;
-
-        currentTime = addHours(currentTime, 1);
-      }
-
-      console.log('Jadwal berhasil diperbarui dengan nama pengguna');
-    } catch (error) {
-      console.error('Error updating schedule with user name:', error);
-      toast.error('Gagal memperbarui jadwal dengan nama pengguna');
-    }
-  };
-
+  
   return (
     <div className="p-4">
       <h2 className="text-2xl font-bold mb-4">Kelola Pemesanan</h2>
@@ -317,7 +286,7 @@ export const Bookings = () => {
                   <TableCell>
                     <div className="flex flex-col sm:flex-row">
                       <span className="font-medium sm:hidden">Pengguna:</span>
-                      {booking.users.email}
+                      {booking.users.full_name}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -361,7 +330,7 @@ export const Bookings = () => {
                             <div className="space-y-4">
                               <div className="bg-gray-100 p-4 rounded-lg">
                                 <h3 className="text-lg font-semibold mb-2">Informasi Umum</h3>
-                                <p><span className="font-medium">Pengguna:</span> {selectedBooking.users.email}</p>
+                                <p><span className="font-medium">Pengguna:</span> {selectedBooking.users.full_name}</p>
                                 <p><span className="font-medium">Lapangan:</span> {selectedBooking.courts.name}</p>
                                 <p><span className="font-medium">Tanggal:</span> {format(new Date(selectedBooking.booking_date), 'dd/MM/yyyy')}</p>
                                 <p><span className="font-medium">Waktu:</span> {`${selectedBooking.start_time} - ${selectedBooking.end_time}`}</p>
